@@ -44,6 +44,19 @@ struct _kswq_t {
 	__m128i *qp, *H0, *H1, *E, *Hmax;
 };
 
+
+static inline uint32_t *push_cigar(int *n_cigar, int *m_cigar, uint32_t *cigar, int op, int len)
+{
+	if (*n_cigar == 0 || op != (cigar[(*n_cigar) - 1]&0xf)) {
+		if (*n_cigar == *m_cigar) {
+			*m_cigar = *m_cigar? (*m_cigar)<<1 : 4;
+			cigar = realloc(cigar, (*m_cigar) << 2);
+		}
+		cigar[(*n_cigar)++] = len<<4 | op;
+	} else cigar[(*n_cigar)-1] += len<<4;
+	return cigar;
+}
+
 /**
  * Initialize the query data structure
  *
@@ -436,23 +449,114 @@ int ksw_extend(int qlen, const uint8_t *query, int tlen, const uint8_t *target, 
 	return max;
 }
 
+#define MINUS_INF -0x40000000
+#include <stdio.h>
+
+int ksw_glocal(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int *_tlb, int *_tle, int *n_cigar_, uint32_t **cigar_)
+{
+	eh_t *eh;
+	int8_t *qp; // query profile
+	int i, j, k, gapoe = gapo + gape, score, n_col;
+	uint8_t *z; // backtrack matrix; in each cell: f<<4|e<<2|h; in principle, we can halve the memory, but backtrack will be a little more complex
+	int tle = -1;
+	if (n_cigar_) *n_cigar_ = 0;
+	// allocate memory
+	n_col = qlen < 2*w+1? qlen : 2*w+1; // maximum #columns of the backtrack matrix
+	z = malloc(n_col * tlen);
+	qp = malloc(qlen * m);
+	eh = calloc(qlen + 1, 8);
+	// generate the query profile
+	for (k = i = 0; k < m; ++k) {
+		const int8_t *p = &mat[k * m];
+		for (j = 0; j < qlen; ++j) qp[i++] = p[query[j]];
+	}
+	// fill the first row
+	eh[0].h = 0; eh[0].e = MINUS_INF;
+	for (j = 1; j <= qlen && j <= w; ++j)
+		eh[j].h = -(gapo + gape * j), eh[j].e = MINUS_INF;
+	for (; j <= qlen; ++j) eh[j].h = eh[j].e = MINUS_INF; // everything is -inf outside the band
+	// DP loop
+	score = 0;
+	for (i = 0; LIKELY(i < tlen); ++i) { // target sequence is in the outer loop
+		int32_t f = MINUS_INF, h1, beg, end;
+		int8_t *q = &qp[target[i] * qlen];
+		uint8_t *zi = &z[i * n_col];
+		beg = i > w? i - w : 0;
+		end = i + w + 1 < qlen? i + w + 1 : qlen; // only loop through [beg,end) of the query sequence
+		h1 = beg == 0? -(gapo + gape * (i + 1)) : MINUS_INF;
+		for (j = beg; LIKELY(j < end); ++j) {
+			// At the beginning of the loop: eh[j] = { H(i-1,j-1), E(i,j) }, f = F(i,j) and h1 = H(i,j-1)
+			// This loop is organized in a similar way to ksw_extend() and ksw_sse2(), except:
+			// 1) not checking h>0; 2) recording direction for backtracking
+			eh_t *p = &eh[j];
+			int32_t h = p->h, e = p->e;
+			uint8_t d; // direction
+			p->h = h1;
+			h += q[j];
+			d = h > e? 0 : 1;
+			h = h > e? h : e;
+			d = h > f? d : 2;
+			h = h > f? h : f;
+			d = h > 0? d : 3;
+			h = h > 0? h : 0;
+			h1 = h;
+			h -= gapoe;
+			e -= gape;
+			d |= e > h? 1<<2 : 0;
+			e = e > h? e : h;
+			p->e = e;
+			f -= gape;
+			d |= f > h? 2<<4 : 0; // if we want to halve the memory, use one bit only, instead of two
+			f = f > h? f : h;
+			zi[j - beg] = d; // z[i,j] keeps h for the current cell and e/f for the next cell
+		}
+		eh[end].h = h1; eh[end].e = MINUS_INF;
+		if (score < h1) {
+			tle = i + 1;
+			score = h1;
+		}
+	}
+
+	// backtrack
+	int n_cigar = 0, m_cigar = 0, which = 0;
+	uint32_t *cigar = 0, tmp;
+
+	// (i,k) points to the cell with the greatest score
+	i = tle - 1; 
+	k = (i + w + 1 < qlen? i + w + 1 : qlen) - 1; 
+
+	int tlb = tle;
+	while (i >= 0 && k >= 0) {
+		which = z[i * n_col + (k - (i > w? i - w : 0))] >> (which<<1) & 3;
+		if (which == 0)      cigar = push_cigar(&n_cigar, &m_cigar, cigar, 0, 1), --i, --k, --tlb;
+		else if (which == 1) cigar = push_cigar(&n_cigar, &m_cigar, cigar, 2, 1), --i, --tlb;
+		else if (which == 2) cigar = push_cigar(&n_cigar, &m_cigar, cigar, 1, 1), --k;
+		else if (which == 3) break;
+	}
+	if (which < 3) {
+		if (i >= 0) cigar = push_cigar(&n_cigar, &m_cigar, cigar, 2, i + 1), --tlb;
+		if (k >= 0) cigar = push_cigar(&n_cigar, &m_cigar, cigar, 1, k + 1);
+	}
+	for (i = 0; i < n_cigar>>1; ++i) // reverse CIGAR
+		tmp = cigar[i], cigar[i] = cigar[n_cigar-1-i], cigar[n_cigar-1-i] = tmp;
+	*_tlb = tlb;
+	*_tle = tle;
+
+	if (n_cigar_ && cigar_) { // backtrack
+		*n_cigar_ = n_cigar, *cigar_ = cigar;
+	}
+	else {
+		free(cigar);
+	}
+
+	free(eh); free(qp); free(z);
+	return score;
+}
+
+
 /********************
  * Global alignment *
  ********************/
-
-#define MINUS_INF -0x40000000
-
-static inline uint32_t *push_cigar(int *n_cigar, int *m_cigar, uint32_t *cigar, int op, int len)
-{
-	if (*n_cigar == 0 || op != (cigar[(*n_cigar) - 1]&0xf)) {
-		if (*n_cigar == *m_cigar) {
-			*m_cigar = *m_cigar? (*m_cigar)<<1 : 4;
-			cigar = realloc(cigar, (*m_cigar) << 2);
-		}
-		cigar[(*n_cigar)++] = len<<4 | op;
-	} else cigar[(*n_cigar)-1] += len<<4;
-	return cigar;
-}
 
 int ksw_global(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int *n_cigar_, uint32_t **cigar_)
 {
