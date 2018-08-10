@@ -7,6 +7,8 @@ PROG=		ksw
 INCLUDES=	
 LIBS=		-lm
 SUBDIRS=	.
+# Target installation directory
+PREFIX:=    /usr/local/bin
 
 ifeq ($(shell uname -s),Linux)
 	LIBS += -lrt
@@ -22,7 +24,7 @@ all:$(PROG)
 ksw:$(OBJS)
 
 clean:
-	rm -f gmon.out *.o a.out $(PROG) *~ *.a
+	rm -f gmon.out *.o a.out $(PROG) *~ *.a githash.h
 
 depend:
 	( LC_ALL=C ; export LC_ALL; makedepend -Y -- $(CFLAGS) $(DFLAGS) -- *.c )
@@ -33,7 +35,7 @@ main.o: ksw.h githash.h
 
 githash.h:
 	printf '#ifndef GIT_HASH\n#define GIT_HASH "' > $@ && \
-	(git describe --exact-match || git rev-parse HEAD || echo 'Unknown') | sed '/^\s*$$/d' | tr -d "\n" >> $@ && \
+	(git describe --tags --exact-match || git rev-parse HEAD || echo 'Unknown') | sed '/^\s*$$/d' | tr -d "\n" >> $@ && \
 	printf '"\n#endif\n' >> $@
 
 .PHONY: test
@@ -41,3 +43,5 @@ githash.h:
 test: ksw
 	tests/test.sh || exit 1
 
+install: $(PROG)
+	install -m 755 $(PROG) "$(PREFIX)"

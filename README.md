@@ -54,3 +54,15 @@ To run tests, type:
 ```
 make test
 ```
+
+To install to `/usr/local/bin`, type:
+
+```
+make install
+```
+
+For a custom location (ex. `~/local/bin`), type:
+
+```
+make install PREFIX=~/local/bin
+```
