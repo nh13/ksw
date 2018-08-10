@@ -1,0 +1,7 @@
+language: c
+compiler:
+    - clang
+    - gcc
+script:
+    - sudo chmod 0777 "$HOME/.gitconfig"
+    - make && make test
