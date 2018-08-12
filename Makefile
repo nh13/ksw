@@ -35,7 +35,7 @@ main.o: ksw.h githash.h
 
 githash.h:
 	printf '#ifndef GIT_HASH\n#define GIT_HASH "' > $@ && \
-	(git describe --tags --exact-match || git rev-parse HEAD || echo 'Unknown') | sed '/^\s*$$/d' | tr -d "\n" >> $@ && \
+	(git describe --tags --exact-match || git rev-parse HEAD || (pwd | xargs basename)) | tr -d "\n" >> $@ && \
 	printf '"\n#endif\n' >> $@
 
 .PHONY: test

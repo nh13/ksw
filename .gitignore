@@ -16,7 +16,7 @@
 .git
 TAGS
 post-commit
-.githash.h
+githash.h
 
 # Mac/Xcode-specfic
 xcuserdata
