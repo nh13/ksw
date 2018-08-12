@@ -1,14 +1,14 @@
-CC=			gcc
-CFLAGS=		-g -Wall -Wno-unused-function -O2
-WRAP_MALLOC=-DUSE_MALLOC_WRAPPERS
-DFLAGS=		-DHAVE_PTHREAD $(WRAP_MALLOC)
-OBJS=		main.o
-PROG=		ksw
+CC=			  gcc
+CFLAGS=		  -g -Wall -Wno-unused-function -O2
+WRAP_MALLOC=  -DUSE_MALLOC_WRAPPERS
+DFLAGS=		  -DHAVE_PTHREAD $(WRAP_MALLOC)
+OBJS=		  main.o
+PROG=		  ksw
 INCLUDES=	
-LIBS=		-lm
-SUBDIRS=	.
+LIBS=		  -lm
+SUBDIRS=	  .
 # Target installation directory
-PREFIX:=    /usr/local/bin
+PREFIX:=      /usr/local/bin
 
 ifeq ($(shell uname -s),Linux)
 	LIBS += -lrt
@@ -34,9 +34,15 @@ depend:
 main.o: ksw.h githash.h
 
 githash.h:
+ifndef PKG_VERSION
 	printf '#ifndef GIT_HASH\n#define GIT_HASH "' > $@ && \
-	(git describe --tags --exact-match || git rev-parse HEAD || (pwd | xargs basename)) | tr -d "\n" >> $@ && \
+	(git describe --tags --exact-match || git rev-parse HEAD || printf Unknown) | tr -d "\n" >> $@ && \
 	printf '"\n#endif\n' >> $@
+else
+	printf '#ifndef GIT_HASH\n#define GIT_HASH "' > $@ && \
+    printf $(PKG_VERSION) >> $@ && \
+	printf '"\n#endif\n' >> $@
+endif
 
 .PHONY: test
 
