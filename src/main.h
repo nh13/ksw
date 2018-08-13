@@ -12,6 +12,7 @@ typedef struct {
 	int32_t alignment_mode;
 	int32_t add_cigar;
 	int32_t add_seq;
+	int32_t add_header;
 } main_opt_t;
 
 #endif

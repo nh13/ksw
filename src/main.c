@@ -110,6 +110,7 @@ void usage(main_opt_t *opt)
 	fprintf(stderr, "       -m FILE     Path to the scoring matrix (4x4 or 5x5) [%s]\n", opt->matrix_fn == NULL ? "None" : opt->matrix_fn);
 	fprintf(stderr, "       -c          Append the cigar to the output [%s]\n", opt->add_cigar == 0 ? "false" : "true");
 	fprintf(stderr, "       -s          Append the query and target to the output [%s]\n", opt->add_seq == 0 ? "false" : "true");
+	fprintf(stderr, "       -H          Add a header line to the output [%s]\n", opt->add_header == 0 ? "false" : "true");
 }
 
 main_opt_t *main_opt_init()
@@ -126,6 +127,7 @@ main_opt_t *main_opt_init()
 	opt->alignment_mode = 0;
 	opt->add_cigar = 0;
 	opt->add_seq = 0;
+	opt->add_header = 0;
 
 	return opt;
 }
@@ -275,7 +277,7 @@ int main(int argc, char *argv[])
 
 	opt = main_opt_init();
 
-	while ((c = getopt(argc, argv, "M:a:b:q:r:w:0:m:csh")) >= 0) {
+	while ((c = getopt(argc, argv, "M:a:b:q:r:w:0:m:csHh")) >= 0) {
 		switch (c) {
 			case 'M': opt->alignment_mode = atoi(optarg); break;
 			case 'a': opt->match_score = atoi(optarg); break;
@@ -287,6 +289,7 @@ int main(int argc, char *argv[])
 			case 'm': opt->matrix_fn = optarg; break; 
 			case 'c': opt->add_cigar = 1; break;
 			case 's': opt->add_seq = 1; break;
+			case 'H': opt->add_header = 1; break;
 			case 'h': usage(opt); return 1;
 			default: usage(opt); return 1;
 		}
@@ -310,6 +313,13 @@ int main(int argc, char *argv[])
 
 	// overwrite if a matrix file was given
 	if (opt->matrix_fn != NULL) fill_matrix(mat, opt->matrix_fn);
+
+	if (opt->add_header) {
+		fprintf(stdout, "score\tquery_start\tquery_end\ttarget_start\ttarget_end");
+		if (opt->add_cigar == 1) fprintf(stdout, "\tcigar");
+		if (opt->add_seq) fprintf(stdout, "\tquery\ttarget");
+		fputc('\n', stdout);
+	}
 
 	// read a query and target at a time
 	while (NULL != fgets(query, buffer, stdin) && NULL != fgets(target, buffer, stdin)) {
