@@ -30,7 +30,6 @@ do
             do
                 args="-M $mode"
                 if $add_seq ; then args+=" -s"; fi
-                if $add_seq ; then args+=" -s"; fi
                 if $add_cigar; then args+=" -c"; fi
                 if $add_header; then args+=" -H"; fi
                 echo "Testing $args";

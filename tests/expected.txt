@@ -1,4 +1,4 @@
-args: -M 0 -s -s -c -H
+args: -M 0 -s -c -H
 score	query_start	query_end	target_start	target_end	cigar	query	target
 6	0	6	0	6	6M	GATTAC	GATTAC
 6	0	6	0	6	6M	GATTAC	GATTACAAAAAA
@@ -8,7 +8,7 @@ score	query_start	query_end	target_start	target_end	cigar	query	target
 7	0	7	0	7	7M	AAAAAAAA	AAAAAAA
 7	0	7	0	7	7M	AAAAAAA	AAAAAAAA
 8	0	8	0	8	8M	AAAAAAAA	AAAAAAAA
-args: -M 0 -s -s -c
+args: -M 0 -s -c
 6	0	6	0	6	6M	GATTAC	GATTAC
 6	0	6	0	6	6M	GATTAC	GATTACAAAAAA
 6	0	6	4	10	6M	GATTAC	AAAAGATTACAAAAA
@@ -17,7 +17,7 @@ args: -M 0 -s -s -c
 7	0	7	0	7	7M	AAAAAAAA	AAAAAAA
 7	0	7	0	7	7M	AAAAAAA	AAAAAAAA
 8	0	8	0	8	8M	AAAAAAAA	AAAAAAAA
-args: -M 0 -s -s -H
+args: -M 0 -s -H
 score	query_start	query_end	target_start	target_end	query	target
 6	0	6	0	6	GATTAC	GATTAC
 6	0	6	0	6	GATTAC	GATTACAAAAAA
@@ -27,7 +27,7 @@ score	query_start	query_end	target_start	target_end	query	target
 7	0	7	0	7	AAAAAAAA	AAAAAAA
 7	0	7	0	7	AAAAAAA	AAAAAAAA
 8	0	8	0	8	AAAAAAAA	AAAAAAAA
-args: -M 0 -s -s
+args: -M 0 -s
 6	0	6	0	6	GATTAC	GATTAC
 6	0	6	0	6	GATTAC	GATTACAAAAAA
 6	0	6	4	10	GATTAC	AAAAGATTACAAAAA
@@ -74,7 +74,7 @@ args: -M 0
 7	0	7	0	7
 7	0	7	0	7
 8	0	8	0	8
-args: -M 1 -s -s -c -H
+args: -M 1 -s -c -H
 score	query_start	query_end	target_start	target_end	cigar	query	target
 6	0	6	0	6	6M	GATTAC	GATTAC
 6	0	6	0	6	6M	GATTAC	GATTACAAAAAA
@@ -84,7 +84,7 @@ score	query_start	query_end	target_start	target_end	cigar	query	target
 6	0	8	1	7	6M	AAAAAAAA	AAAAAAA
 7	0	7	0	7	7M	AAAAAAA	AAAAAAAA
 8	0	8	0	8	8M	AAAAAAAA	AAAAAAAA
-args: -M 1 -s -s -c
+args: -M 1 -s -c
 6	0	6	0	6	6M	GATTAC	GATTAC
 6	0	6	0	6	6M	GATTAC	GATTACAAAAAA
 5	0	6	5	10	5M	GATTAC	AAAAGATTACAAAAA
@@ -93,7 +93,7 @@ args: -M 1 -s -s -c
 6	0	8	1	7	6M	AAAAAAAA	AAAAAAA
 7	0	7	0	7	7M	AAAAAAA	AAAAAAAA
 8	0	8	0	8	8M	AAAAAAAA	AAAAAAAA
-args: -M 1 -s -s -H
+args: -M 1 -s -H
 score	query_start	query_end	target_start	target_end	query	target
 6	0	6	0	6	GATTAC	GATTAC
 6	0	6	0	6	GATTAC	GATTACAAAAAA
@@ -103,7 +103,7 @@ score	query_start	query_end	target_start	target_end	query	target
 6	0	8	1	7	AAAAAAAA	AAAAAAA
 7	0	7	0	7	AAAAAAA	AAAAAAAA
 8	0	8	0	8	AAAAAAAA	AAAAAAAA
-args: -M 1 -s -s
+args: -M 1 -s
 6	0	6	0	6	GATTAC	GATTAC
 6	0	6	0	6	GATTAC	GATTACAAAAAA
 5	0	6	5	10	GATTAC	AAAAGATTACAAAAA
@@ -150,7 +150,7 @@ args: -M 1
 6	0	8	1	7
 7	0	7	0	7
 8	0	8	0	8
-args: -M 3 -s -s -c -H
+args: -M 3 -s -c -H
 score	query_start	query_end	target_start	target_end	cigar	query	target
 6	0	6	0	6	6M	GATTAC	GATTAC
 -11	0	6	0	12	6M6D	GATTAC	GATTACAAAAAA
@@ -160,7 +160,7 @@ score	query_start	query_end	target_start	target_end	cigar	query	target
 0	0	8	0	7	7M1I	AAAAAAAA	AAAAAAA
 0	0	7	0	8	7M1D	AAAAAAA	AAAAAAAA
 8	0	8	0	8	8M	AAAAAAAA	AAAAAAAA
-args: -M 3 -s -s -c
+args: -M 3 -s -c
 6	0	6	0	6	6M	GATTAC	GATTAC
 -11	0	6	0	12	6M6D	GATTAC	GATTACAAAAAA
 -22	0	6	0	15	4D6M5D	GATTAC	AAAAGATTACAAAAA
@@ -169,7 +169,7 @@ args: -M 3 -s -s -c
 0	0	8	0	7	7M1I	AAAAAAAA	AAAAAAA
 0	0	7	0	8	7M1D	AAAAAAA	AAAAAAAA
 8	0	8	0	8	8M	AAAAAAAA	AAAAAAAA
-args: -M 3 -s -s -H
+args: -M 3 -s -H
 score	query_start	query_end	target_start	target_end	query	target
 6	0	6	0	6	GATTAC	GATTAC
 -11	0	6	0	12	GATTAC	GATTACAAAAAA
@@ -179,7 +179,7 @@ score	query_start	query_end	target_start	target_end	query	target
 0	0	8	0	7	AAAAAAAA	AAAAAAA
 0	0	7	0	8	AAAAAAA	AAAAAAAA
 8	0	8	0	8	AAAAAAAA	AAAAAAAA
-args: -M 3 -s -s
+args: -M 3 -s
 6	0	6	0	6	GATTAC	GATTAC
 -11	0	6	0	12	GATTAC	GATTACAAAAAA
 -22	0	6	0	15	GATTAC	AAAAGATTACAAAAA
