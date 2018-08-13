@@ -153,6 +153,7 @@ void main_opt_validate(main_opt_t *opt)
 	assert_or_exit(opt->gap_open > 0, "Gap open penalty (-q) must be greater than zero, found %d.", opt->gap_open);
 	assert_or_exit(opt->gap_extend > 0, "Gap extend penalty (-r) must be greater than zero, found %d.", opt->gap_extend);
 	assert_or_exit(0 <= opt->band_width, "Band width (-w) must be greater than or equal zero, found %d.", opt->band_width);
+	assert_or_exit(2 != opt->alignment_mode, "Mode (-M) extend is not currently working.");
 }
 
 
