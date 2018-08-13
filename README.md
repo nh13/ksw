@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/fulcrumgenomics/fgbio.svg?branch=master)](https://travis-ci.org/nh13/ksw)
+[![Build Status](https://travis-ci.org/nh13/ksw.svg?branch=master)](https://travis-ci.org/nh13/ksw)
 [![License](http://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/nh13/ksw/blob/master/LICENSE)
 [![Language](http://img.shields.io/badge/language-c-brightgreen.svg)](http://devdocs.io/c/)
 
