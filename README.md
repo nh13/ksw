@@ -67,3 +67,9 @@ For a custom location (ex. `~/local/bin`), type:
 ```
 make install PREFIX=~/local/bin
 ```
+
+To make a custom tarball, with all sources including sources from submodules, type:
+
+```
+make tarball
+```
