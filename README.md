@@ -6,14 +6,14 @@
 
 ## <a name="overview"></a>Overview
 
-This is a light-weight adaptation of [klib](https://github.com/attractivechaos/klib) to facilitate various types of [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) alignment, but more importantly do so interactively.
+This is a light-weight adaptation of [klib](https://github.com/attractivechaos/klib) and [ksw2](https://github.com/lh3/ksw2) to facilitate various types of [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) alignment, but more importantly do so while streaming.
 
 The following four alignment modes are supported:
 
-* Local alignment: a sub-sequence of the query aligned to a sub-sequence of the target
-* Glocal: the full query aligned to a sub-sequence of the target
-* Extension - a prefix of the query aligned to a prefix of the target
-* Global - full query aligned to the full target
+* Local alignment: a sub-sequence of the query aligned to a sub-sequence of the target (klib/ksw2)
+* Glocal: the full query aligned to a sub-sequence of the target (ksw2)
+* Extension - a prefix of the query aligned to a prefix of the target (ksw2)
+* Global - full query aligned to the full target (ksw2)
 
 ## <a name="running"></a>Running
 
@@ -22,8 +22,8 @@ The query should be on the first line, while the target on the second line.
 Subsequent lines should alternate between query and target.
 
 This tool can be run **_interactively_**.  Meaning, the tool reads in one query and target at a time, runs alignment, then writes the alignment output, then waits for more input.
-Therefore, we can wrap this tool in a process that writes to the standard input of this tool, waits for the alignment result on standard output, then does something else, then feeds more data to standard input. 
-
+Therefore, we can wrap this tool in a process that writes to the standard input of this tool, waits for the alignment result on standard output, then does something else, then feeds more data to standard input.
+This saves time executing the tool each time for thousands or millions of alignments.
 
 ## <a name="installation"></a>Installation
 
