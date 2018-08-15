@@ -61,7 +61,7 @@ else
 endif
 
 versions/version.ksw2.txt:
-	git ls-tree HEAD src/ksw2 > $@
+	(git ls-tree HEAD src/ksw2 > $@ || echo "Not setting ksw2 version, not a git repository")
 
 .PHONY: test clean $(SUBDIRS)
 
