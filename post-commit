@@ -1,2 +1,3 @@
 #!/bin/sh
 rm -f githash.h
+rm -f version.ksw.txt
