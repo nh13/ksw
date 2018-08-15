@@ -30,9 +30,9 @@ endif
 .SUFFIXES:.c .o
 
 
-all:src/ksw2/Makefile $(PROG)
+all:src/ksw2/Makefile $(PROG) version.ksw2.txt
 
-ksw: $(KSW2_OBJS) $(OBJS)
+ksw: $(KSW2_OBJS) $(OBJS) 
 	$(CC) $(LDFLAGS) $(DFLAGS) $^ $(LIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/githash.h
@@ -46,7 +46,7 @@ src/ksw2/Makefile:
 	@error
 
 clean:
-	rm -f gmon.out a.out $(PROG) *~ *.a $(SRC_DIR)/githash.h $(OBJS)
+	rm -f gmon.out a.out $(PROG) *~ *.a $(SRC_DIR)/githash.h $(OBJS) version.ksw2.txt
 	for dir in $(SUBDIRS); do if [ -d $$dir ]; then $(MAKE) -C $$dir -f Makefile $@; fi; done
 
 $(SRC_DIR)/githash.h:
@@ -59,6 +59,9 @@ else
     printf $(PKG_VERSION) >> $@ && \
 	printf '"\n#endif\n' >> $@
 endif
+
+version.ksw2.txt:
+	git ls-tree HEAD src/ksw2 > $@
 
 .PHONY: test clean $(SUBDIRS)
 
