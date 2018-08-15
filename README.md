@@ -30,11 +30,12 @@ Therefore, we can wrap this tool in a process that writes to the standard input 
 Clone this repository:
 
 ```
-git clone git@github.com:nh13/ksw.git
+git clone --recursive git@github.com:nh13/ksw.git
 ```
+Note the use of --recursive. This is required in order to download all nested git submodules for external repositories.
+
 
 To get version displayed in the utility, do the following:
-
 
 ```
 cp post-commit .git/hooks/post-commit;

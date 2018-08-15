@@ -16,26 +16,30 @@ fi
 
 echo -n "" > $output;
 
-for mode in 0 1 2 3
+for alignment_mode in 0 1 2 3
 do
     for add_seq in true false
     do
         for add_cigar in true false
         do
-            if [[ $mode == 2 ]] && [[ $add_cigar ]]; then
-                echo "FIXME: skipping extra tests for mode 2 when generating a cigar" >&2;
-                continue;
-            fi
             for add_header in true false
             do
-                args="-M $mode"
-                if $add_seq ; then args+=" -s"; fi
-                if $add_cigar; then args+=" -c"; fi
-                if $add_header; then args+=" -H"; fi
-                echo "Testing $args";
+                for right_align in true false
+                do
+                    for offset_and_length in true false
+                    do
+                        args="-M $alignment_mode"
+                        if $add_seq ; then args+=" -s"; fi
+                        if $add_cigar; then args+=" -c"; fi
+                        if $add_header; then args+=" -H"; fi
+                        if $right_align; then args+=" -R"; fi
+                        if $offset_and_length; then args+=" -O"; fi
+                        echo "Testing $args";
 
-                echo "args: $args" >> $output;
-                cat $script_dir/inputs.txt | $script_dir/../ksw $args >> $output;
+                        echo "args: $args" >> $output;
+                        cat $script_dir/inputs.txt | $script_dir/../ksw $args >> $output;
+                    done
+                done
             done
         done
     done
