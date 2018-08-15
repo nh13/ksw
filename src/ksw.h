@@ -2,6 +2,7 @@
 #define __AC_KSW_H
 
 #include <stdint.h>
+#include "ksw2/ksw2.h"
 
 #define KSW_XBYTE  0x10000
 #define KSW_XSTOP  0x20000
@@ -62,9 +63,9 @@ extern "C" {
 	 */
 	kswr_t ksw_align(int qlen, uint8_t *query, int tlen, uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int xtra, kswq_t **qry);
 
-	int ksw_extend(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int h0, int *_qle, int *_tle);
-	int ksw_glocal(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int *_tlb, int *_tle, int *n_cigar_, uint32_t **cigar_);
-	int ksw_global(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int *_n_cigar, uint32_t **_cigar);
+	int ksw_extend(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int *_qle, int *_tle, void *km, ksw_extz_t *ez);
+	int ksw_glocal(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int *_tlb, int *_tle, void *km, ksw_extz_t *ez);
+	int ksw_global(int qlen, const uint8_t *query, int tlen, const uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int w, int *_n_cigar, void *km, ksw_extz_t *ez);
 
 #ifdef __cplusplus
 }

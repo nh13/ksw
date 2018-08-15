@@ -2,6 +2,8 @@ language: c
 compiler:
     - clang
     - gcc
+before_install:
+    - git submodule update --init --recursive
 script:
     - sudo chmod 0777 "$HOME/.gitconfig"
     - make && make test
