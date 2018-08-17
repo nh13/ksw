@@ -1,12 +1,3 @@
-CC=			  gcc
-CFLAGS=		  -g -Wall -Wno-unused-function -O2
-WRAP_MALLOC=  -DUSE_MALLOC_WRAPPERS
-DFLAGS=		  -DHAVE_PTHREAD $(WRAP_MALLOC)
-INCLUDES=
-LIBS=		  -lm -lz
-LDFLAGS=
-
-
 SRC_DIR=      src
 OBJ_DIR=      obj
 SRCS=         $(wildcard $(SRC_DIR)/*.c)
@@ -18,7 +9,17 @@ KSW2_SRCS=    $(filter-out $(KSW2_MAINS),$(wildcard $(KSW2_SRC_DIR)/*c))
 KSW2_OBJS=    $(KSW2_SRCS:$(KSW2_SRC_DIR)/%.c=$(KSW2_OBJ_DIR)/%.o)
 
 PROG=		  ksw
-SUBDIRS=      $(SRC_DIR)/ksw2/
+SUBDIRS=      $(SRC_DIR)/ksw2/ $(SRC_DIR)/parasail/build
+
+CC=			  gcc
+CFLAGS=		  -g -Wall -Wno-unused-function -O2
+WRAP_MALLOC=  -DUSE_MALLOC_WRAPPERS
+DFLAGS=		  -DHAVE_PTHREAD $(WRAP_MALLOC)
+INCLUDES=
+#LIBS=		  $(SRC_DIR)/parasail/build/libparasail.a -lm -lz
+LIBS=		  -lm -lz -lparasail
+LDFLAGS=      -L$(SRC_DIR)/parasail/build
+
 
 # Target installation directory
 PREFIX:=      /usr/local/bin
@@ -29,29 +30,39 @@ endif
 
 .SUFFIXES:.c .o
 
+all: $(SUBDIRS) $(PROG)
 
-all:src/ksw2/Makefile $(PROG)
+$(SUBDIRS): $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/build/Makefile 
+	$(MAKE) -C $@
 
 ksw: $(KSW2_OBJS) $(OBJS)
-	$(CC) $(LDFLAGS) $(DFLAGS) $^ $(LIBS) -o $@
+	$(CC) -g $(LDFLAGS) $(DFLAGS) $^ $(LIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/githash.h
 	@mkdir -p $(dir $@)
 	$(CC) -c $(CFLAGS) $(DFLAGS) $(INCLUDES) $< -o $@
 
-src/ksw2/Makefile:
+# The target that makes sure that the ksw2 Makefile and parasail CMakeLists.txt files exist
+$(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt :
 	@echo "To build ksw you must use git to also download its submodules."
 	@echo "Do so by downloading ksw again using this command (note --recursive flag):"
 	@echo "    git clone --recursive git://github.com/nh13/ksw.git"
 	@error
 
-clean:
+# Generates the Makefile for parasail
+$(SRC_DIR)/parasail/build/Makefile: $(SRC_DIR)/parasail/CMakeLists.txt
+	@mkdir -p $(SRC_DIR)/parasail/build;
+	cd $(SRC_DIR)/parasail/build; \
+	cmake -DBUILD_SHARED_LIBS=OFF ..;
+
+clean: $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt
 	rm -f gmon.out a.out $(PROG) *~ *.a $(SRC_DIR)/githash.h $(OBJS)
-	for dir in $(SUBDIRS); do if [ -d $$dir ]; then $(MAKE) -C $$dir -f Makefile $@; fi; done
+	for dir in $(SUBDIRS); do if [ -d $$dir ]; then if [ -f $$dir/Makefile ]; then $(MAKE) -C $$dir -f Makefile $@; fi; fi; done
+	rm $(SRC_DIR)/parasail/build/Makefile
 
 $(SRC_DIR)/githash.h: version.ksw.txt
 ifndef PKG_VERSION
-	$(eval PKG_VERSION := $(shell (git describe --tags --exact-match 2> /dev/null || git rev-parse HEAD || cat version.ksw.txt) | tr -d "\n"))
+	$(eval PKG_VERSION := $(shell (git describe --tags --exact-match || git rev-parse HEAD || cat version.ksw.txt) 2> /dev/null | tr -d "\n"))
 endif
 	printf '#ifndef GIT_HASH\n#define GIT_HASH "' > $@ && \
 	printf $(PKG_VERSION) >> $@ && \
@@ -69,10 +80,15 @@ version.ksw.txt:
 	@mkdir -p $(dir $@)
 	(if [ ! -f $(SRC_DIR)/githash.h ]; then echo Unknown; else sed -n '2p;3q' $(SRC_DIR)/githash.h | cut -f3 -d ' ' | sed -e 's_"__g'; fi) >> version.ksw.txt
 
-tarball: $(SRC_DIR)/githash.h
-ifneq ("$(shell git diff --quiet)", "")
-	@echo "Cannot create a tarball: the current working directory is dirty (see git diff)"
+.git: $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt
+	@echo "A git clone of the source is required:"
+	@echo "    git clone --recursive git://github.com/nh13/ksw.git"
 	@error
+
+tarball: $(SRC_DIR)/githash.h .git
+ifneq ("$(shell git diff --quiet 2> /dev/null)", "")
+	@echo "Cannot create a tarball: the current working directory is dirty (see git diff)"
+	@error 
 else
 ifndef TARBALL_REF
 	@echo Setting version
@@ -80,7 +96,7 @@ ifndef TARBALL_REF
 endif
 	@echo TARBALL_REF $(TARBALL_REF)
 	@echo Running git archive...
-	git archive --format=tar -o ksw-tmp.tar --prefix ksw-$(TARBALL_REF)/ master
+	git archive --format=tar -o ksw-tmp.tar --prefix ksw-$(TARBALL_REF)/ $(TARBALL_REF)
 	tar xvf ksw-tmp.tar && rm ksw-tmp.tar
 	cp version.ksw.txt ksw-$(TARBALL_REF)/version.ksw.txt
 	cp $(SRC_DIR)/githash.h ksw-$(TARBALL_REF)/$(SRC_DIR)/githash.h

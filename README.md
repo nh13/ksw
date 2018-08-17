@@ -6,14 +6,18 @@
 
 ## <a name="overview"></a>Overview
 
-This is a light-weight adaptation of [klib](https://github.com/attractivechaos/klib) and [ksw2](https://github.com/lh3/ksw2) to facilitate various types of [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) alignment, but more importantly do so while streaming.
+This is a light-weight adaptation of [parasail](https://github.com/jeffdaily/parasail) and [ksw2](https://github.com/lh3/ksw2) to facilitate various types of [Smith-Waterman](https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm) alignment.
+More importantly, it facilitates sending an alignment input via standard input and having the output on standard output, with the tool exiting only when standard input is closed.
+This allows wrapping this tool in `Scala`, `python`, or other programming languages to allow for interactive alignment, without having to restart the tool.
 
 The following four alignment modes are supported:
 
-* Local alignment: a sub-sequence of the query aligned to a sub-sequence of the target (klib/ksw2)
-* Glocal: the full query aligned to a sub-sequence of the target (ksw2)
-* Extension - a prefix of the query aligned to a prefix of the target (ksw2)
-* Global - full query aligned to the full target (ksw2)
+* Local alignment: a sub-sequence of the query aligned to a sub-sequence of the target ([parasail](https://github.com/jeffdaily/parasail) only)
+* Glocal: the full query aligned to a sub-sequence of the target ([parasail](https://github.com/jeffdaily/parasail) only)
+* Extension - a prefix of the query aligned to a prefix of the target ([ksw2](https://github.com/lh3/ksw2) only)
+* Global - full query aligned to the full target ([parasail](https://github.com/jeffdaily/parasail) or [ksw2](https://github.com/lh3/ksw2))
+
+Use the `-M` option to select the alignment mode, and the `-l` option to select which library ([parasail](https://github.com/jeffdaily/parasail) or [ksw2](https://github.com/lh3/ksw2)) to use.
 
 ## <a name="running"></a>Running
 
