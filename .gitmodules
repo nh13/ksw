@@ -1,3 +1,8 @@
 [submodule "ksw2"]
 	path = src/ksw2
 	url = https://github.com/lh3/ksw2.git
+	ignore = dirty
+[submodule "src/parasail"]
+	path = src/parasail
+	url = https://github.com/jeffdaily/parasail.git
+	ignore = dirty

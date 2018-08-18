@@ -31,10 +31,28 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
-#include "ksw.h"
+//#include "ksw2/kalloc.h"
 #include "ksw2/ksw2.h"
+#include "parasail/parasail.h"
 #include "githash.h"
 #include "main.h"
+
+enum Library {
+	LibraryStart = 0,
+	AutoLibrary  = 0,
+	Ksw2         = 1,
+	Parasail     = 2,
+	LibraryEnd   = 2,
+};
+
+enum AlignmentMode {
+	AlignmentModeStart = 0,
+	Local              = 0,
+	Glocal             = 1,
+	Extension          = 2,
+	Global             = 3,
+	AlignmentModeEnd   = 3,
+};
 
 // converts ascii DNA bases to their integer format (only [ACGTacgt], the rest go to N)
 unsigned char seq_nt4_table[256] = {
@@ -56,7 +74,7 @@ unsigned char seq_nt4_table[256] = {
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
 };
 
-void fill_matrix(int8_t *mat, char *fn) {
+void fill_matrix(int8_t *matrix, char *fn) {
 	FILE *fp = fopen(fn, "r");
 	char buffer[256];
 	char *pch;
@@ -69,7 +87,7 @@ void fill_matrix(int8_t *mat, char *fn) {
 				fprintf(stderr, "Too many values in %s\n", fn);
 				exit(1);
 			}
-			mat[i] = atoi(pch);
+			matrix[i] = atoi(pch);
 			i++;
 		}
 	}
@@ -81,39 +99,135 @@ void fill_matrix(int8_t *mat, char *fn) {
 	fclose(fp);
 }
 
-char *mode_to_str(mode)
+char *alignment_mode_to_str(mode)
 {
 	switch (mode) {
-		case 0: return "local";
-		case 1: return "glocal";
-		case 2: return "extend";
-		case 3: return "global";
-		default:
-				fprintf(stderr, "Unknown mode: %d\n", mode); 
-				exit(1);
+		case Local: return "local";
+		case Glocal: return "glocal";
+		case Extension: return "extend";
+		case Global: return "global";
+		default: return "unknown";
 	}
 }
 
-void usage(main_opt_t *opt)
+char *library_to_str(mode)
 {
-	fprintf(stderr, "\n");
-	fprintf(stderr, "Program: ksw (klib smith-waterman)\n");
-	fprintf(stderr, "Version: %s\n", GIT_HASH);
-	fprintf(stderr, "Usage: ksw [options]\n\n");
-	fprintf(stderr, "Algorithm options:\n\n");
-	fprintf(stderr, "       -M INT      The alignment mode: 0 - local, 1 - glocal, 2 - extend, 3 - global [%d/%s]\n", opt->alignment_mode, mode_to_str(opt->alignment_mode));
-	fprintf(stderr, "       -a INT      The match score (>0) [%d]\n", opt->match_score);
-	fprintf(stderr, "       -b INT      The mismatch penalty (>0) [%d]\n", opt->mismatch_score);
-	fprintf(stderr, "       -q INT      The gap open penalty (>0) [%d]\n", opt->gap_open);
-	fprintf(stderr, "       -r INT      The gap extend penalty (>0) [%d]\n", opt->gap_extend);
-	fprintf(stderr, "       -w INT      The band width [%d]\n", opt->band_width);
-	fprintf(stderr, "       -m FILE     Path to the scoring matrix (4x4 or 5x5) [%s]\n", opt->matrix_fn == NULL ? "None" : opt->matrix_fn);
-	fprintf(stderr, "       -c          Append the cigar to the output [%s]\n", opt->add_cigar == 0 ? "false" : "true");
-	fprintf(stderr, "       -s          Append the query and target to the output [%s]\n", opt->add_seq == 0 ? "false" : "true");
-	fprintf(stderr, "       -H          Add a header line to the output [%s]\n", opt->add_header == 0 ? "false" : "true");
-	fprintf(stderr, "       -R          Right-align gaps [%s]\n", opt->right_align_gaps == 0 ? "false" : "true");
-	fprintf(stderr, "       -o          Output offset-and-length, otherwise start-and-end (all zero-based)[%s]\n", opt->offset_and_length == 0 ? "false" : "true");
+	switch (mode) {
+		case AutoLibrary: return "auto";
+		case Ksw2: return "ksw2";
+		case Parasail: return "parasail";
+		default: return "unknown";
+	}
 }
+
+/*****************/
+/** ksw2_data_t **/
+/*****************/
+
+ksw2_data_t *ksw2_data_init(main_opt_t *opt, const int8_t *matrix)
+{
+	ksw2_data_t *data = calloc(1, sizeof(ksw2_data_t));
+
+	data->ksw2_flags = (opt->right_align_gaps == 1) ? KSW_EZ_RIGHT : 0;
+	if (opt->add_cigar != 1) data->ksw2_flags |= KSW_EZ_SCORE_ONLY;
+	memset(&data->ez, 0, sizeof(ksw_extz_t));
+	
+	//data->km = km_init(); FIXME
+
+	data->matrix = calloc(1, sizeof(int8_t)*25);
+	memcpy(data->matrix, matrix, sizeof(int8_t)*25);
+	
+	return data;
+
+}
+
+void ksw2_data_destroy(ksw2_data_t *data)
+{
+	free(data->matrix);
+	kfree(data->km, data->ez.cigar);
+	//km_destroy(data->km); FIXME
+	free(data);
+}
+
+/*******************/
+/* parasail_data_t */
+/*******************/
+
+// See: https://github.com/jeffdaily/parasail#standard-function-naming-convention
+void parasail_to_func_name(char *parasail_func_name, int alignment_mode, int add_cigar, int vec_strategy)
+{
+	parasail_func_name[0] = '\0';
+	strcat(parasail_func_name, "parasail");
+
+	// Non-vectorized
+	/*
+	switch (alignment_mode) {
+		case Local: strcat(parasail_func_name, "_sw"); break; // local
+		case Glocal: strcat(parasail_func_name, "_sg"); break; // glocal: allow leading insertions on either query or target
+		case Extension: fprintf(stderr, "Parasail does not support extension\n"); exit(1);
+		case Global: strcat(parasail_func_name, "_nw"); break; // global
+		default: fprintf(stderr, "Unknown alignment mode: %d\n", alignment_mode); exit(1);
+	}
+	if (add_cigar == 1) strcat(parasail_func_name, "_trace");
+	*/
+
+	// Vectorized
+	switch (alignment_mode) {
+		case Local: strcat(parasail_func_name, "_sw"); break; // local
+		case Glocal: strcat(parasail_func_name, "_sg"); break; // glocal: allow leading insertions on either query or target
+		case Extension: fprintf(stderr, "Parasail does not support extension\n"); exit(1);
+		case Global: strcat(parasail_func_name, "_nw"); break; // global
+		default: fprintf(stderr, "Unknown alignment mode: %d\n", alignment_mode); exit(1);
+	}
+	if (add_cigar == 1) strcat(parasail_func_name, "_trace");
+	switch (vec_strategy) {
+		case 0: strcat(parasail_func_name, "_striped"); break;
+		case 1: strcat(parasail_func_name, "_scan"); break;
+		case 2: strcat(parasail_func_name, "_diag"); break;
+		default: fprintf(stderr, "Unknown parasail vectorization strategy: %d\n", vec_strategy); exit(1);
+	}
+	strcat(parasail_func_name, "_32"); // TODO: add this as a command line option?
+}
+
+parasail_data_t *parasail_data_init(main_opt_t *opt, const int8_t *matrix)
+{
+	int i, j, l;
+	parasail_data_t *data = calloc(1, sizeof(parasail_data_t));
+	char parasail_func_name[128];
+	
+	// create a matrix, don't care about the valukes
+	data->matrix = parasail_matrix_create("ACGTN", matrix[0], matrix[1]); 
+	// update the matrix with the correct values
+	for (i = l = 0; i < 5; ++i) {
+		for (j = 0; j < 5; ++j, ++l) {
+			parasail_matrix_set_value(data->matrix, i, j, matrix[l]);
+		}
+	}
+
+	parasail_to_func_name(parasail_func_name, opt->alignment_mode, opt->add_cigar, opt->parasail_vec_strat);
+	data->func = parasail_lookup_function(parasail_func_name);
+
+	// the global alignment function is needed for glocal when we don't align the full query
+	if (opt->alignment_mode == Glocal) {
+		data->func_global = data->func;
+	}
+	else {
+		parasail_to_func_name(parasail_func_name, Global, opt->add_cigar, opt->parasail_vec_strat);
+		data->func_global = parasail_lookup_function(parasail_func_name);
+	}
+
+	return data;
+}
+
+void parasail_data_destroy(parasail_data_t *data)
+{
+	parasail_matrix_free(data->matrix);
+	free(data);
+}
+
+/****************/
+/** main_opt_t **/
+/****************/
 
 main_opt_t *main_opt_init()
 {
@@ -131,8 +245,66 @@ main_opt_t *main_opt_init()
 	opt->add_header = 0;
 	opt->right_align_gaps = 0;
 	opt->offset_and_length = 0;
+	opt->parasail_vec_strat = 0; // TODO: set on the command line
+	opt->library = AutoLibrary;
 
 	return opt;
+}
+
+void main_opt_init_library(main_opt_t *opt)
+{
+	int i, j, k;
+	int8_t matrix[25];
+
+	// initialize scoring matrix
+	for (i = k = 0; i < 4; ++i) {
+		for (j = 0; j < 4; ++j) {
+			matrix[k++] = i == j? opt->match_score: -opt->mismatch_score;
+		}
+		matrix[k++] = 0; // ambiguous base
+	}
+	for (j = 0; j < 5; ++j) matrix[k++] = 0;
+	// overwrite if a matrix file was given
+	if (opt->matrix_fn != NULL) fill_matrix(matrix, opt->matrix_fn);
+
+	// adjust the library mode if it is set on auto
+	if (opt->library == AutoLibrary) {
+		switch (opt->alignment_mode) {
+			case Local: 
+			case Glocal: 
+			case Global: opt->library = Parasail; break;
+			case Extension: opt->library = Ksw2; break;
+			default:
+				fprintf(stderr, "Unknown alignment mode in %s: %d\n", __func__, opt->alignment_mode); 
+				exit(1);
+		}
+	}
+
+	switch (opt->library) {
+		case Ksw2: 
+			opt->_library_func = align_with_ksw2;
+			opt->_library_data = (void*)ksw2_data_init(opt, matrix); 
+			break;
+		case Parasail: 
+			opt->_library_func = align_with_parasail;
+			opt->_library_data = (void*)parasail_data_init(opt, matrix); 
+			break;
+		default:
+			fprintf(stderr, "Unknown library in %s: %d", __func__, opt->library);
+			exit(1);
+	}
+}
+
+void main_opt_destroy(main_opt_t *opt)
+{
+	switch (opt->library) {
+		case Ksw2: ksw2_data_destroy((ksw2_data_t*)opt->_library_data); break;
+		case Parasail: parasail_data_destroy((parasail_data_t*)opt->_library_data); break;
+		default:
+			fprintf(stderr, "Unknown library in %s: %d", __func__, opt->library);
+			exit(1);
+	}
+	free(opt);
 }
 
 void assert_or_exit(int condition, const char *fmt, ...)
@@ -150,177 +322,280 @@ void assert_or_exit(int condition, const char *fmt, ...)
 
 void main_opt_validate(main_opt_t *opt)
 {
-	assert_or_exit(0 <= opt->alignment_mode && opt->alignment_mode <= 3, "Alignment mode (-M) was not valid ([0-3]), found %d.", opt->alignment_mode);
+	assert_or_exit(AlignmentModeStart <= opt->alignment_mode && opt->alignment_mode <= AlignmentModeEnd, "Alignment mode (-M) was not valid ([%d-%d]), found %d.", AlignmentModeStart, AlignmentModeEnd, opt->alignment_mode);
 	assert_or_exit(opt->mismatch_score > 0, "Mismatch score (-a) must be greater than zero, found %d.", opt->mismatch_score);
 	assert_or_exit(opt->match_score > 0, "Mismatch score (-b) must be greater than zero, found %d.", opt->mismatch_score);
 	assert_or_exit(opt->gap_open > 0, "Gap open penalty (-q) must be greater than zero, found %d.", opt->gap_open);
 	assert_or_exit(opt->gap_extend > 0, "Gap extend penalty (-r) must be greater than zero, found %d.", opt->gap_extend);
 	assert_or_exit(0 <= opt->band_width, "Band width (-w) must be greater than or equal zero, found %d.", opt->band_width);
-}
+	assert_or_exit(LibraryStart <= opt->library && opt->library <= LibraryEnd, "Library (-l) was not valid ([%d-%d]), found %d.", LibraryStart, LibraryEnd, opt->library);
 
-
-void get_cigar(
-		char *query, 
-		char *target, 
-		main_opt_t *opt, 
-		int8_t *mat, 
-		int qlb,
-		int qle,
-		int tlb,
-		int tle,
-		int prev_score, 
-		void *km,
-		ksw_extz_t *ez)
-{
-	int ql = qle - qlb + 1;
-	int tl = tle - tlb + 1;
-	int ksw2_flags = (opt->right_align_gaps == 1) ? KSW_EZ_RIGHT : 0;
-	ksw_extz2_sse(km, ql, (uint8_t*)(query+qlb), tl, (uint8_t*)(target+tlb), 5, mat, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_flags, ez);
-	int new_score = ez->score;
-	if (new_score != prev_score) {
-		int i;
-		fprintf(stderr, "Bug: prev_score: %d new_score: %d\n", prev_score, new_score);
-		fprintf(stderr, "\tqlb: %d qle: %d tlb: %d tle: %d\n", qlb, qle, tlb, tle);
-		fputc('\t', stderr);
-		fprintf(stderr, "query: ");
-		for (i = 0; i < ql; ++i) fputc("ACGTN"[(uint8_t)query[i+qlb]], stderr);
-		fputc('\n', stderr);
-		fputc('\t', stderr);
-		fprintf(stderr, "target: ");
-		for (i = 0; i < tl; ++i) fputc("ACGTN"[(uint8_t)target[i+tlb]], stderr);
-		fputc('\n', stderr);
-		exit(1);
+	// verify library type with alignment_mode
+	int found_mismatch = 0;
+	switch (opt->library) {
+		case Ksw2: 
+			if (opt->alignment_mode != Extension && opt->alignment_mode != Global) found_mismatch = 1; 
+			break;
+		case Parasail: 
+			assert_or_exit(opt->right_align_gaps == 0, "Cannot right adjust gaps (-R) with parasail (-l)");
+			if (opt->alignment_mode != Local && opt->alignment_mode != Glocal && opt->alignment_mode != Global) found_mismatch = 1; 
+			break;
+		default: break;
 	}
+	assert_or_exit(found_mismatch == 0, "Cannot use alignment mode (-M) %d-%s with library (-l) %d-%s.", 
+			opt->alignment_mode, alignment_mode_to_str(opt->alignment_mode),
+			opt->library, library_to_str(opt->library));
 }
 
-void align(char *query, char *target, main_opt_t *opt, int8_t *mat, void *km, ksw_extz_t *ez)
+/***************/
+/* alignment_t */
+/***************/
+
+alignment_t *alignment_init() 
 {
-	int i, j, score;
-	int qlb = 0, qle = 0, tlb = 0, tle = 0; // query/target x alignment start/end, zero-based
+	alignment_t *alignment = calloc(1, sizeof(alignment_t));
+	return alignment;
+}
+void alignment_reset(alignment_t *a)
+{
+	a->qlb = a->tlb = a->qle = a->tlb = 0;
+	a->n_cigar = 0;
+}
+
+void alignment_print(FILE *fp, const char *query, const char *target, const main_opt_t *opt, const alignment_t *a) 
+{
+	int i;
+	// output the score and start/end or start/length
+	if (opt->offset_and_length == 1) {
+		int qll = a->qle - a->qlb + 1;
+		int tll = a->tle - a->tlb + 1;
+		fprintf(fp, "%d\t%d\t%d\t%d\t%d", a->score, a->qlb, qll, a->tlb, tll);
+	}
+	else {
+		fprintf(fp, "%d\t%d\t%d\t%d\t%d", a->score, a->qlb, a->qle, a->tlb, a->tle);
+	}
+	// output the cigar
+	if (opt->add_cigar == 1) {
+		fputc('\t', fp);
+		if (a->n_cigar == 0) fputc('*', fp);
+		for (i = 0; i < a->n_cigar; ++i) {
+			fprintf(fp, "%d%c", a->cigar[i]>>4, "MID"[a->cigar[i]&0xf]);
+		}
+	}
+	// output the query and target
+	if (opt->add_seq) fprintf(fp, "\t%s\t%s", query, target);
+	// flush the output so no one is waiting on buffering.
+	fputc('\n', fp);
+	fflush(fp);
+}
+
+void alignment_destroy(alignment_t *alignment)
+{
+	free(alignment->cigar);
+	free(alignment);
+}
+
+/*************************************/
+/* Library-specific aligment methods */
+/*************************************/
+
+void align_with_ksw2(char *query, int query_length, char *target, int target_length, main_opt_t *opt, void* library_data, alignment_t *alignment) {
+	int i;
+	ksw2_data_t *ksw2_data = (ksw2_data_t*)library_data;
+
+	// convert to bases in integer format
+	for (i = 0; i < query_length; ++i) query[i] = seq_nt4_table[(int)query[i]];
+	for (i = 0; i < target_length; ++i) target[i] = seq_nt4_table[(int)target[i]];
+
+	switch (opt->alignment_mode) {
+		case Local: fprintf(stderr, "KSW2 does not support local\n"); exit(1);
+		case Glocal: fprintf(stderr, "KSW2 does not support glocal\n"); exit(1);
+		case Extension: // extend
+			ksw_extz2_sse(0, query_length, (uint8_t*)query, target_length, (uint8_t*)target, 5, ksw2_data->matrix, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_data->ksw2_flags | KSW_EZ_EXTZ_ONLY, &ksw2_data->ez);
+			alignment->score   = ksw2_data->ez.mqe; // maximum score when we reach the end of the query
+			if (ksw2_data->ez.max_q < 0) {
+				alignment->qlb = -1;
+				alignment->qle = -1;
+				alignment->tlb = -1;
+				alignment->tle = -1;
+			}
+			else {
+				alignment->qlb = 0;
+				alignment->tlb = 0;
+				alignment->qle = ksw2_data->ez.max_q;
+				alignment->tle = ksw2_data->ez.max_t;
+			}
+			break;
+		case Global: // global
+			ksw_extz2_sse(0, query_length, (uint8_t*)query, target_length, (uint8_t*)target, 5, ksw2_data->matrix, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_data->ksw2_flags, &ksw2_data->ez);
+			alignment->score = ksw2_data->ez.score;
+			alignment->qlb = 0;
+			alignment->tlb = 0;
+			alignment->qle   = query_length-1;
+			alignment->tle   = target_length-1;
+			break;
+		default:
+			fprintf(stderr, "Unknown alignment mode in %s: %d\n", __func__, opt->alignment_mode); 
+			exit(1);
+	}
+
+	// copy cigar
+	if (opt->add_cigar == 1) {
+		if (alignment->m_cigar < ksw2_data->ez.m_cigar) {
+			alignment->m_cigar = ksw2_data->ez.m_cigar;
+			alignment->cigar = (uint32_t*)realloc(alignment->cigar, alignment->m_cigar*sizeof(uint32_t));
+		}
+		for (i = 0; i < ksw2_data->ez.n_cigar; i++) {
+			alignment->cigar[i] = ksw2_data->ez.cigar[i];
+		}
+		alignment->n_cigar = ksw2_data->ez.n_cigar;
+	}
+
+	// convert back to bases
+	for (i = 0; i < query_length; ++i) query[i] = "ACGTN"[(int)query[i]];
+	for (i = 0; i < target_length; ++i) target[i] = "ACGTN"[(int)target[i]];
+}
+
+
+void align_with_parasail(char *query, int query_length, char *target, int target_length, main_opt_t *opt, void *library_data, alignment_t *alignment)
+{
+	parasail_data_t *parasail_data = (parasail_data_t*)library_data;
+	int i;
+	parasail_result_t *parasail_result;
+	parasail_cigar_t *parasail_cigar;
+	parasail_result = parasail_data->func(query, query_length, target, target_length, opt->gap_open + opt->gap_extend, opt->gap_extend, parasail_data->matrix);
+
+	// global align is needed for glocal when we don't align the full query
+	if (opt->alignment_mode == 1) {
+		parasail_result_free(parasail_result);
+		parasail_result = parasail_data->func_global(query, query_length, target, target_length, opt->gap_open + opt->gap_extend, opt->gap_extend, parasail_data->matrix);
+	}
+
+	// set the score
+	alignment->score = parasail_result->score;
+
+	// set end of alignmnet
+	alignment->qle = parasail_result->end_query;
+	alignment->tle = parasail_result->end_ref;
+
+	// add the cigar, and if so, set the alignment beginning
+	if (opt->add_cigar == 1) {
+		parasail_cigar = parasail_result_get_cigar(parasail_result, query, query_length, target, target_length, parasail_data->matrix);
+		alignment->qlb = parasail_cigar->beg_query;
+		alignment->tlb = parasail_cigar->beg_ref;
+		int prev_op_int = -1;
+		for (i = 0; i < parasail_cigar->len; ++i) {
+			char op = parasail_cigar_decode_op(parasail_cigar->seq[i]);
+			int op_int;
+			// "MIDNSHP=XB"
+			switch (op) {
+				case 'M':
+				case '=':
+				case 'X':
+					op_int = 0; break;
+				case 'I':
+					op_int = 1; break;
+				case 'D':
+					op_int = 2; break;
+				default:
+					fprintf(stderr, "Unknown cigar type: %c\n", op);
+					exit(1);
+			}
+			uint32_t len = parasail_cigar_decode_len(parasail_cigar->seq[i]);
+			if (prev_op_int == op_int) { // add to the previous
+				len += alignment->cigar[alignment->n_cigar-1] >> 4; 
+				alignment->cigar[alignment->n_cigar-1] = len<<4 | op_int;
+			}
+			else { // new cigar element
+				if (alignment->n_cigar == alignment->m_cigar) {
+					alignment->m_cigar = alignment->m_cigar ? (alignment->m_cigar)<<1 : 4;
+					alignment->cigar = (uint32_t*)realloc(alignment->cigar, alignment->m_cigar*sizeof(uint32_t));
+				}
+				alignment->cigar[alignment->n_cigar] = len<<4 | op_int;
+				alignment->n_cigar++;
+			}
+			prev_op_int = op_int;
+		}
+		parasail_cigar_free(parasail_cigar);
+	}
+	else {
+		alignment->qlb = -1;
+		alignment->tlb = -1;
+	}
+	parasail_result_free(parasail_result);
+}
+
+void align(char *query, char *target, main_opt_t *opt, alignment_t *alignment) 
+{
 	int ql = strlen(query); // query length
 	int tl = strlen(target); // target length
-	int xtra = KSW_XSTART | KSW_XSUBO; // for ksw_align
-	kswr_t r; // for ksw_align
-	int ksw2_flags = (opt->right_align_gaps == 1) ? KSW_EZ_RIGHT : 0;
-	if (opt->add_cigar != 1) ksw2_flags |= KSW_EZ_SCORE_ONLY;
 
 	// remove ending newlines
 	if (query[ql-1] == '\n') { query[ql-1] = '\0'; ql--; }
 	if (target[tl-1] == '\n') { target[tl-1] = '\0'; tl--; }
 
-	// convert to bases in integer format
-	for (i = 0; i < ql; ++i) query[i] = seq_nt4_table[(int)query[i]];
-	for (i = 0; i < tl; ++i) target[i] = seq_nt4_table[(int)target[i]];
+	// reset the alignment
+	alignment_reset(alignment);
 
-	// TODO: store a function and use it
-	kswq_t *q = 0;
-	switch (opt->alignment_mode) {
-		case 0: // local
-			r = ksw_align(ql, (uint8_t*)query, tl, (uint8_t*)target, 5, mat, opt->gap_open, opt->gap_extend, xtra, &q);
-			score = r.score;
-			// set return values
-			qlb = r.qb;
-			qle = r.qe;
-			tlb = r.tb;
-			tle = r.te;
-			free(q);
-			if (opt->add_cigar) get_cigar(query, target, opt, mat, qlb, qle, tlb, tle, score, km, ez);
-			break;
-		case 1: // glocal: full query, local target
-			ksw_extz2_sse(km, ql, (uint8_t*)query, tl, (uint8_t*)target, 5, mat, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_flags, ez);
-			score = ez->score;
-			qlb = tlb = 0;
-			qle = ql-1;
-			tle = tl-1;
-			// Convert from global to glocal by removing leading and trailing deletions
-			// remove leading deletions
-			for (j = 0; j < ez->n_cigar && (ez->cigar[j]&0xf) == 2; ++j) { 
-				int len = ez->cigar[j]>>4;
-				tlb += len;
-				score += opt->gap_open + (len * opt->gap_extend);
-			}
-			if (j > 0) {
-				for (i = 0; j < ez->n_cigar; ++i, ++j) ez->cigar[i] = ez->cigar[j];
-				ez->n_cigar = i;
-			}
-			// remove trailing deletions
-			for (i = ez->n_cigar-1, j = 0;0 <= i && (ez->cigar[i]&0xf) == 2; --i, ++j) { 
-				int len = ez->cigar[i]>>4;
-				tle -= len;
-				score += opt->gap_open + (len * opt->gap_extend);
-			}
-			if (0 < j) ez->n_cigar -= j;
-			break;
-		case 2: // extend
-			ksw_extz2_sse(km, ql, (uint8_t*)query, tl, (uint8_t*)target, 5, mat, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_flags | KSW_EZ_EXTZ_ONLY, ez);
-			score   = ez->mqe; // maximum score when we reach the end of the query
-			if (ez->max_q < 0) {
-				qlb = tlb = qle = tle = -1;
-			}
-			else {
-				qlb = tlb = 0;
-				qle = ez->max_q;
-				tle = ez->max_t;
-			}
-			break;
-		case 3: // global
-			ksw_extz2_sse(km, ql, (uint8_t*)query, tl, (uint8_t*)target, 5, mat, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_flags, ez);
-			score = ez->score;
-			qlb   = tlb = 0;
-			qle   = ql-1;
-			tle   = tl-1;
-			break;
-		default:
-			fprintf(stderr, "Unknown mode: %d\n", opt->alignment_mode); 
-			exit(1);
-	}
-	// output the score and start/end or start/length
-	if (opt->offset_and_length == 1) {
-		int qll = qle - qlb + 1;
-		int tll = tle - tlb + 1;
-		fprintf(stdout, "%d\t%d\t%d\t%d\t%d", score, qlb, qll, tlb, tll);
-	}
-	else {
-		fprintf(stdout, "%d\t%d\t%d\t%d\t%d", score, qlb, qle, tlb, tle);
-	}
-	// output the cigar
-	if (opt->add_cigar == 1) {
-		fputc('\t', stdout);
-		if (ez->n_cigar == 0) fputc('*', stdout);
-		for (i = 0; i < ez->n_cigar; ++i) {
-			fprintf(stdout, "%d%c", ez->cigar[i]>>4, "MID"[ez->cigar[i]&0xf]);
-		}
-	}
-	// output the query and target
-	if (opt->add_seq) {
-		fputc('\t', stdout);
-		for (i = 0; i < ql; ++i) fputc("ACGTN"[(uint8_t)query[i]], stdout);
-		fputc('\t', stdout);
-		for (i = 0; i < tl; ++i) fputc("ACGTN"[(uint8_t)target[i]], stdout);
-	}
-	fputc('\n', stdout);
-	fflush(stdout);
+	// do the alignment
+	opt->_library_func(query, ql, target, tl, opt, opt->_library_data, alignment);
+
+	// print it
+	alignment_print(stdout, query, target, opt, alignment);
 }
 
+/*********/
+/** main */
+/*********/
+
+void usage(main_opt_t *opt)
+{
+	int i;
+	fprintf(stderr, "\n");
+	fprintf(stderr, "Program: ksw (klib smith-waterman)\n");
+	fprintf(stderr, "Version: %s\n", GIT_HASH);
+	fprintf(stderr, "Usage: ksw [options]\n\n");
+	fprintf(stderr, "Algorithm options:\n\n");
+	fprintf(stderr, "       -M INT      The alignment mode:");
+	for (i = AlignmentModeStart; i <= AlignmentModeEnd; ++i) {
+		fprintf(stderr, " %d - %s", i, alignment_mode_to_str(i));
+		if (i < AlignmentModeEnd) fputc(',', stderr);
+	}
+	fprintf(stderr, " [%d-%s]\n", opt->alignment_mode, alignment_mode_to_str(opt->alignment_mode));
+	fprintf(stderr, "       -a INT      The match score (>0) [%d]\n", opt->match_score);
+	fprintf(stderr, "       -b INT      The mismatch penalty (>0) [%d]\n", opt->mismatch_score);
+	fprintf(stderr, "       -q INT      The gap open penalty (>0) [%d]\n", opt->gap_open);
+	fprintf(stderr, "       -r INT      The gap extend penalty (>0) [%d]\n", opt->gap_extend);
+	fprintf(stderr, "       -w INT      The band width (ksw only) [%d]\n", opt->band_width);
+	fprintf(stderr, "       -m FILE     Path to the scoring matrix (4x4 or 5x5) [%s]\n", opt->matrix_fn == NULL ? "None" : opt->matrix_fn);
+	fprintf(stderr, "       -c          Append the cigar to the output [%s]\n", opt->add_cigar == 0 ? "false" : "true");
+	fprintf(stderr, "       -s          Append the query and target to the output [%s]\n", opt->add_seq == 0 ? "false" : "true");
+	fprintf(stderr, "       -H          Add a header line to the output [%s]\n", opt->add_header == 0 ? "false" : "true");
+	fprintf(stderr, "       -R          Right-align gaps (ksw only)[%s]\n", opt->right_align_gaps == 0 ? "false" : "true");
+	fprintf(stderr, "       -o          Output offset-and-length, otherwise start-and-end (all zero-based)[%s]\n", opt->offset_and_length == 0 ? "false" : "true");
+	fprintf(stderr, "       -l INT      The library type:");
+	for (i = LibraryStart; i <= LibraryEnd; ++i) {
+		fprintf(stderr, " %d - %s", i, alignment_mode_to_str(i));
+		if (i < LibraryEnd) fputc(',', stderr);
+	}
+	fprintf(stderr, " [%d-%s]\n", opt->library, library_to_str(opt->library));
+}
 
 int main(int argc, char *argv[])
 {
 	main_opt_t * opt = NULL;
-	int c, i, j, k;
-	int8_t mat[25];
+	int c;
 	int buffer=1024; 
 	char query[buffer], target[buffer];
-	void *km = 0;
 	ksw_extz_t ez;
+	alignment_t *alignment = alignment_init();
 
-#ifdef HAVE_KALLOC
-	km = no_kalloc? 0 : km_init();
-#endif
 	memset(&ez, 0, sizeof(ksw_extz_t));
 
 	opt = main_opt_init();
 
-	while ((c = getopt(argc, argv, "M:a:b:q:r:w:m:csHROh")) >= 0) {
+	// FIXME: for local or glocal we don't the query/target starts unless we output the cigar
+	while ((c = getopt(argc, argv, "M:a:b:q:r:w:m:csHROl:h")) >= 0) {
 		switch (c) {
 			case 'M': opt->alignment_mode = atoi(optarg); break;
 			case 'a': opt->match_score = atoi(optarg); break;
@@ -334,6 +609,7 @@ int main(int argc, char *argv[])
 			case 'H': opt->add_header = 1; break;
 			case 'R': opt->right_align_gaps = 1; break;
 			case 'O': opt->offset_and_length = 1; break;
+			case 'l': opt->library = atoi(optarg); break;
 			case 'h': usage(opt); return 1;
 			default: usage(opt); return 1;
 		}
@@ -345,18 +621,9 @@ int main(int argc, char *argv[])
 
 	// validate args
 	main_opt_validate(opt);
-
-	// initialize scoring matrix
-	for (i = k = 0; i < 4; ++i) {
-		for (j = 0; j < 4; ++j) {
-			mat[k++] = i == j? opt->match_score: -opt->mismatch_score;
-		}
-		mat[k++] = 0; // ambiguous base
-	}
-	for (j = 0; j < 5; ++j) mat[k++] = 0;
-
-	// overwrite if a matrix file was given
-	if (opt->matrix_fn != NULL) fill_matrix(mat, opt->matrix_fn);
+	
+	// set the library data **after** setting the scoring matrix
+	main_opt_init_library(opt);
 
 	// output the header
 	if (opt->add_header) {
@@ -372,14 +639,12 @@ int main(int argc, char *argv[])
 
 	// read a query and target at a time
 	while (NULL != fgets(query, buffer, stdin) && NULL != fgets(target, buffer, stdin)) {
-		align(query, target, opt, mat, km, &ez);
+		align(query, target, opt, alignment);
 	}
-	free(opt);
 
-	kfree(km, ez.cigar);
-#ifdef HAVE_KALLOC
-	km_destroy(km);
-#endif
+	// clean up
+	alignment_destroy(alignment);
+	main_opt_destroy(opt);
 
 	return 0;
 }

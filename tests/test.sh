@@ -16,23 +16,34 @@ fi
 
 echo -n "" > $output;
 
-for alignment_mode in 0 1 2 3
+for library in 0 1 2
 do
-    for add_seq in true false
+    # set the alignment mode
+    if [ $library == 0 ]; then
+        # auto
+        alignment_modes=(0 1 2 3)
+    elif [ $library == 1 ]; then
+        # ksw2
+        alignment_modes=(2 3)
+    else
+        # parasail
+        alignment_modes=(0 1 3)
+    fi
+
+    for alignment_mode in "${alignment_modes[@]}"
     do
-        for add_cigar in true false
+        for add_seq in true false
         do
-            for add_header in true false
+            for add_cigar in true false
             do
-                for right_align in true false
+                for add_header in true false
                 do
                     for offset_and_length in true false
                     do
-                        args="-M $alignment_mode"
+                        args="-l $library -M $alignment_mode"
                         if $add_seq ; then args+=" -s"; fi
                         if $add_cigar; then args+=" -c"; fi
                         if $add_header; then args+=" -H"; fi
-                        if $right_align; then args+=" -R"; fi
                         if $offset_and_length; then args+=" -O"; fi
                         echo "Testing $args";
 
