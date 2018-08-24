@@ -58,7 +58,7 @@ $(SRC_DIR)/parasail/build/Makefile: $(SRC_DIR)/parasail/CMakeLists.txt
 clean: $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt
 	rm -f gmon.out a.out $(PROG) *~ *.a $(SRC_DIR)/githash.h $(OBJS)
 	for dir in $(SUBDIRS); do if [ -d $$dir ]; then if [ -f $$dir/Makefile ]; then $(MAKE) -C $$dir -f Makefile $@; fi; fi; done
-	rm $(SRC_DIR)/parasail/build/Makefile
+	rm -f $(SRC_DIR)/parasail/build/Makefile
 
 $(SRC_DIR)/githash.h: version.ksw.txt
 ifndef PKG_VERSION
