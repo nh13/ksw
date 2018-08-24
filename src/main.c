@@ -343,7 +343,7 @@ void main_opt_validate(main_opt_t *opt)
 		default: break;
 	}
 	assert_or_exit(found_mismatch == 0, "Cannot use alignment mode (-M) %d-%s with library (-l) %d-%s.", 
-			opt->alignment_mode, alignment_mode_to_str(opt->alignment_mode),
+			opt->alignment_mode, library_to_str(opt->alignment_mode),
 			opt->library, library_to_str(opt->library));
 }
 
@@ -561,7 +561,7 @@ void usage(main_opt_t *opt)
 		fprintf(stderr, " %d - %s", i, alignment_mode_to_str(i));
 		if (i < AlignmentModeEnd) fputc(',', stderr);
 	}
-	fprintf(stderr, " [%d-%s]\n", opt->alignment_mode, alignment_mode_to_str(opt->alignment_mode));
+	fprintf(stderr, " [%d - %s]\n", opt->alignment_mode, alignment_mode_to_str(opt->alignment_mode));
 	fprintf(stderr, "       -a INT      The match score (>0) [%d]\n", opt->match_score);
 	fprintf(stderr, "       -b INT      The mismatch penalty (>0) [%d]\n", opt->mismatch_score);
 	fprintf(stderr, "       -q INT      The gap open penalty (>0) [%d]\n", opt->gap_open);
@@ -575,10 +575,10 @@ void usage(main_opt_t *opt)
 	fprintf(stderr, "       -o          Output offset-and-length, otherwise start-and-end (all zero-based)[%s]\n", opt->offset_and_length == 0 ? "false" : "true");
 	fprintf(stderr, "       -l INT      The library type:");
 	for (i = LibraryStart; i <= LibraryEnd; ++i) {
-		fprintf(stderr, " %d - %s", i, alignment_mode_to_str(i));
+		fprintf(stderr, " %d - %s", i, library_to_str(i));
 		if (i < LibraryEnd) fputc(',', stderr);
 	}
-	fprintf(stderr, " [%d-%s]\n", opt->library, library_to_str(opt->library));
+	fprintf(stderr, " [%d - %s]\n", opt->library, library_to_str(opt->library));
 }
 
 int main(int argc, char *argv[])
