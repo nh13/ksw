@@ -16,9 +16,8 @@ CFLAGS=		  -g -Wall -Wno-unused-function -O2
 WRAP_MALLOC=  -DUSE_MALLOC_WRAPPERS
 DFLAGS=		  -DHAVE_PTHREAD $(WRAP_MALLOC)
 INCLUDES=
-#LIBS=		  $(SRC_DIR)/parasail/build/libparasail.a -lm -lz
 LIBS=		  -lm -lz -lparasail
-LDFLAGS=      -L$(SRC_DIR)/parasail/build
+override LDFLAGS +=      -L$(SRC_DIR)/parasail/build
 
 
 # Target installation directory
@@ -35,8 +34,8 @@ all: $(SUBDIRS) $(PROG)
 $(SUBDIRS): $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/build/Makefile 
 	$(MAKE) -C $@
 
-ksw: $(KSW2_OBJS) $(OBJS)
-	$(CC) -g $(LDFLAGS) $(DFLAGS) $^ $(LIBS) -o $@
+ksw: $(KSW2_OBJS) $(OBJS) $(SRC_DIR)/parasail/build/libparasail.a
+	$(CC) -g $(LDFLAGS) $(DFLAGS) $(KSW2_OBJS) $(OBJS) $(LIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/githash.h
 	@mkdir -p $(dir $@)
@@ -49,8 +48,9 @@ $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt :
 	@echo "    git clone --recursive git://github.com/nh13/ksw.git"
 	@error
 
-# Generates the Makefile for parasail
-$(SRC_DIR)/parasail/build/Makefile: $(SRC_DIR)/parasail/CMakeLists.txt
+# Generates the Makefile and static library for parasail
+# NB: it is important not to run cmake in parallel as failure surely will occur
+.NOTPARALLEL $(SRC_DIR)/parasail/build/Makefile $(SRC_DIR)/parasail/build/libparasail.a: $(SRC_DIR)/parasail/CMakeLists.txt
 	@mkdir -p $(SRC_DIR)/parasail/build;
 	cd $(SRC_DIR)/parasail/build; \
 	cmake -DBUILD_SHARED_LIBS=OFF ..;
@@ -58,7 +58,7 @@ $(SRC_DIR)/parasail/build/Makefile: $(SRC_DIR)/parasail/CMakeLists.txt
 clean: $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt
 	rm -f gmon.out a.out $(PROG) *~ *.a $(SRC_DIR)/githash.h $(OBJS)
 	for dir in $(SUBDIRS); do if [ -d $$dir ]; then if [ -f $$dir/Makefile ]; then $(MAKE) -C $$dir -f Makefile $@; fi; fi; done
-	rm -f $(SRC_DIR)/parasail/build/Makefile
+	rm -f $(SRC_DIR)/parasail/build/Makefile 
 
 $(SRC_DIR)/githash.h: version.ksw.txt
 ifndef PKG_VERSION
