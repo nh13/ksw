@@ -325,7 +325,7 @@ void main_opt_validate(main_opt_t *opt)
 	assert_or_exit(AlignmentModeStart <= opt->alignment_mode && opt->alignment_mode <= AlignmentModeEnd, "Alignment mode (-M) was not valid ([%d-%d]), found %d.", AlignmentModeStart, AlignmentModeEnd, opt->alignment_mode);
 	assert_or_exit(opt->mismatch_score > 0, "Mismatch score (-a) must be greater than zero, found %d.", opt->mismatch_score);
 	assert_or_exit(opt->match_score > 0, "Mismatch score (-b) must be greater than zero, found %d.", opt->mismatch_score);
-	assert_or_exit(opt->gap_open > 0, "Gap open penalty (-q) must be greater than zero, found %d.", opt->gap_open);
+	assert_or_exit(opt->gap_open >= 0, "Gap open penalty (-q) must be greater than or equal to zero, found %d.", opt->gap_open);
 	assert_or_exit(opt->gap_extend > 0, "Gap extend penalty (-r) must be greater than zero, found %d.", opt->gap_extend);
 	assert_or_exit(0 <= opt->band_width, "Band width (-w) must be greater than or equal zero, found %d.", opt->band_width);
 	assert_or_exit(LibraryStart <= opt->library && opt->library <= LibraryEnd, "Library (-l) was not valid ([%d-%d]), found %d.", LibraryStart, LibraryEnd, opt->library);
@@ -564,7 +564,7 @@ void usage(main_opt_t *opt)
 	fprintf(stderr, " [%d - %s]\n", opt->alignment_mode, alignment_mode_to_str(opt->alignment_mode));
 	fprintf(stderr, "       -a INT      The match score (>0) [%d]\n", opt->match_score);
 	fprintf(stderr, "       -b INT      The mismatch penalty (>0) [%d]\n", opt->mismatch_score);
-	fprintf(stderr, "       -q INT      The gap open penalty (>0) [%d]\n", opt->gap_open);
+	fprintf(stderr, "       -q INT      The gap open penalty (>=0) [%d]\n", opt->gap_open);
 	fprintf(stderr, "       -r INT      The gap extend penalty (>0) [%d]\n", opt->gap_extend);
 	fprintf(stderr, "       -w INT      The band width (ksw only) [%d]\n", opt->band_width);
 	fprintf(stderr, "       -m FILE     Path to the scoring matrix (4x4 or 5x5) [%s]\n", opt->matrix_fn == NULL ? "None" : opt->matrix_fn);
@@ -579,6 +579,7 @@ void usage(main_opt_t *opt)
 		if (i < LibraryEnd) fputc(',', stderr);
 	}
 	fprintf(stderr, " [%d - %s]\n", opt->library, library_to_str(opt->library));
+	fprintf(stderr,"\nNote: when any of the algorithms open a gap, the gap open plus the gap extension penalty is applied.\n");
 }
 
 int main(int argc, char *argv[])

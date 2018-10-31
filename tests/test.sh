@@ -40,15 +40,19 @@ do
                 do
                     for offset_and_length in true false
                     do
-                        args="-l $library -M $alignment_mode"
-                        if $add_seq ; then args+=" -s"; fi
-                        if $add_cigar; then args+=" -c"; fi
-                        if $add_header; then args+=" -H"; fi
-                        if $offset_and_length; then args+=" -O"; fi
-                        echo "Testing $args";
+                        for gap_open in 5 0
+                        do
+                            args="-l $library -M $alignment_mode";
+                            if $add_seq ; then args+=" -s"; fi
+                            if $add_cigar; then args+=" -c"; fi
+                            if $add_header; then args+=" -H"; fi
+                            if $offset_and_length; then args+=" -O"; fi
+                            args+=" -q $gap_open";
+                            echo "Testing $args";
 
-                        echo "args: $args" >> $output;
-                        cat $script_dir/inputs.txt | $script_dir/../ksw $args >> $output;
+                            echo "args: $args" >> $output;
+                            cat $script_dir/inputs.txt | $script_dir/../ksw $args >> $output;
+                        done
                     done
                 done
             done

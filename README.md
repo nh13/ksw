@@ -28,6 +28,8 @@ Subsequent lines should alternate between query and target.
 This tool can be run **_interactively_**.  Meaning, the tool reads in one query and target at a time, runs alignment, then writes the alignment output, then waits for more input.
 Therefore, we can wrap this tool in a process that writes to the standard input of this tool, waits for the alignment result on standard output, then does something else, then feeds more data to standard input.
 This saves time executing the tool each time for thousands or millions of alignments.
+	
+Note: when any of the algorithms open a gap, the gap open plus the gap extension penalty is applied.
 
 ## <a name="installation"></a>Installation
 
