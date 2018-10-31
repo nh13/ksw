@@ -572,7 +572,7 @@ void usage(main_opt_t *opt)
 	fprintf(stderr, "       -s          Append the query and target to the output [%s]\n", opt->add_seq == 0 ? "false" : "true");
 	fprintf(stderr, "       -H          Add a header line to the output [%s]\n", opt->add_header == 0 ? "false" : "true");
 	fprintf(stderr, "       -R          Right-align gaps (ksw only)[%s]\n", opt->right_align_gaps == 0 ? "false" : "true");
-	fprintf(stderr, "       -o          Output offset-and-length, otherwise start-and-end (all zero-based)[%s]\n", opt->offset_and_length == 0 ? "false" : "true");
+	fprintf(stderr, "       -O          Output offset-and-length, otherwise start-and-end (all zero-based)[%s]\n", opt->offset_and_length == 0 ? "false" : "true");
 	fprintf(stderr, "       -l INT      The library type:");
 	for (i = LibraryStart; i <= LibraryEnd; ++i) {
 		fprintf(stderr, " %d - %s", i, library_to_str(i));
