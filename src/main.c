@@ -159,22 +159,11 @@ void parasail_to_func_name(char *parasail_func_name, int alignment_mode, int add
 	parasail_func_name[0] = '\0';
 	strcat(parasail_func_name, "parasail");
 
-	// Non-vectorized
-	/*
-	switch (alignment_mode) {
-		case Local: strcat(parasail_func_name, "_sw"); break; // local
-		case Glocal: strcat(parasail_func_name, "_sg"); break; // glocal: allow leading insertions on either query or target
-		case Extension: fprintf(stderr, "Parasail does not support extension\n"); exit(1);
-		case Global: strcat(parasail_func_name, "_nw"); break; // global
-		default: fprintf(stderr, "Unknown alignment mode: %d\n", alignment_mode); exit(1);
-	}
-	if (add_cigar == 1) strcat(parasail_func_name, "_trace");
-	*/
 
 	// Vectorized
 	switch (alignment_mode) {
 		case Local: strcat(parasail_func_name, "_sw"); break; // local
-		case Glocal: strcat(parasail_func_name, "_sg"); break; // glocal: allow leading insertions on either query or target
+		case Glocal: strcat(parasail_func_name, "_sg_dx"); break; // glocal
 		case Extension: fprintf(stderr, "Parasail does not support extension\n"); exit(1);
 		case Global: strcat(parasail_func_name, "_nw"); break; // global
 		default: fprintf(stderr, "Unknown alignment mode: %d\n", alignment_mode); exit(1);
@@ -239,7 +228,7 @@ main_opt_t *main_opt_init()
 	opt->gap_extend = 2;
 	opt->band_width = INT_MAX / 4; // divide by four since in some places we multiply by two
 	opt->matrix_fn = NULL;
-	opt->alignment_mode = 0;
+	opt->alignment_mode = Local;
 	opt->add_cigar = 0;
 	opt->add_seq = 0;
 	opt->add_header = 0;
@@ -465,12 +454,6 @@ void align_with_parasail(char *query, int query_length, char *target, int target
 	parasail_cigar_t *parasail_cigar;
 	parasail_result = parasail_data->func(query, query_length, target, target_length, opt->gap_open + opt->gap_extend, opt->gap_extend, parasail_data->matrix);
 
-	// global align is needed for glocal when we don't align the full query
-	if (opt->alignment_mode == 1) {
-		parasail_result_free(parasail_result);
-		parasail_result = parasail_data->func_global(query, query_length, target, target_length, opt->gap_open + opt->gap_extend, opt->gap_extend, parasail_data->matrix);
-	}
-
 	// set the score
 	alignment->score = parasail_result->score;
 
@@ -483,6 +466,18 @@ void align_with_parasail(char *query, int query_length, char *target, int target
 		parasail_cigar = parasail_result_get_cigar(parasail_result, query, query_length, target, target_length, parasail_data->matrix);
 		alignment->qlb = parasail_cigar->beg_query;
 		alignment->tlb = parasail_cigar->beg_ref;
+		// NB: recompute beg_ref using leading deletions for glocal alignment
+		// beg_ref can be wrong for glocal.  See: https://github.com/jeffdaily/parasail/issues/97
+		if (opt->alignment_mode == Glocal) {
+			alignment->tlb = 0;
+			for (i = 0; i < parasail_cigar->len; ++i) {
+				char op = parasail_cigar_decode_op(parasail_cigar->seq[i]);
+				int op_int;
+				if (op != 'D') break;
+				uint32_t len = parasail_cigar_decode_len(parasail_cigar->seq[i]);
+				alignment->tlb += len;
+			}
+		}
 		int prev_op_int = -1;
 		for (i = 0; i < parasail_cigar->len; ++i) {
 			char op = parasail_cigar_decode_op(parasail_cigar->seq[i]);
@@ -586,7 +581,7 @@ int main(int argc, char *argv[])
 {
 	main_opt_t * opt = NULL;
 	int c;
-	int buffer=1024; 
+	int buffer=65536;
 	char query[buffer], target[buffer];
 	ksw_extz_t ez;
 	alignment_t *alignment = alignment_init();
