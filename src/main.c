@@ -99,7 +99,7 @@ void fill_matrix(int8_t *matrix, char *fn) {
 	fclose(fp);
 }
 
-char *alignment_mode_to_str(mode)
+char *alignment_mode_to_str(int mode)
 {
 	switch (mode) {
 		case Local: return "local";
@@ -110,7 +110,7 @@ char *alignment_mode_to_str(mode)
 	}
 }
 
-char *library_to_str(mode)
+char *library_to_str(int mode)
 {
 	switch (mode) {
 		case AutoLibrary: return "auto";
@@ -347,7 +347,7 @@ alignment_t *alignment_init()
 }
 void alignment_reset(alignment_t *a)
 {
-	a->qlb = a->tlb = a->qle = a->tlb = 0;
+	a->qlb = a->tlb = a->qle = a->tle = 0;
 	a->n_cigar = 0;
 }
 
@@ -472,7 +472,6 @@ void align_with_parasail(char *query, int query_length, char *target, int target
 			alignment->tlb = 0;
 			for (i = 0; i < parasail_cigar->len; ++i) {
 				char op = parasail_cigar_decode_op(parasail_cigar->seq[i]);
-				int op_int;
 				if (op != 'D') break;
 				uint32_t len = parasail_cigar_decode_len(parasail_cigar->seq[i]);
 				alignment->tlb += len;
@@ -581,7 +580,7 @@ int main(int argc, char *argv[])
 {
 	main_opt_t * opt = NULL;
 	int c;
-	int buffer=65536;
+	int buffer=1048576;
 	char query[buffer], target[buffer];
 	ksw_extz_t ez;
 	alignment_t *alignment = alignment_init();
