@@ -32,10 +32,14 @@
 #include <stdarg.h>
 #include <limits.h>
 //#include "ksw2/kalloc.h"
+#include "ksw2/kseq.h"
 #include "ksw2/ksw2.h"
 #include "parasail/parasail.h"
 #include "githash.h"
 #include "main.h"
+
+KSEQ_INIT(int, read)
+
 
 enum Library {
 	LibraryStart = 0,
@@ -580,8 +584,6 @@ int main(int argc, char *argv[])
 {
 	main_opt_t * opt = NULL;
 	int c;
-	int buffer=1048576;
-	char query[buffer], target[buffer];
 	ksw_extz_t ez;
 	alignment_t *alignment = alignment_init();
 
@@ -633,9 +635,18 @@ int main(int argc, char *argv[])
 	}
 
 	// read a query and target at a time
-	while (NULL != fgets(query, buffer, stdin) && NULL != fgets(target, buffer, stdin)) {
-		align(query, target, opt, alignment);
+	kstream_t *fp     = ks_init(fileno(stdin));
+	kstring_t *query  = (kstring_t*)calloc(1, sizeof(kstring_t));
+	kstring_t *target = (kstring_t*)calloc(1, sizeof(kstring_t));
+	int retval = 0;
+	while (ks_getuntil(fp, 0, query, &retval) > 0 && ks_getuntil(fp, 0, target, &retval) > 0) {
+		align(query->s, target->s, opt, alignment);
 	}
+	free(query->s);
+	free(query);
+	free(target->s);
+	free(target);
+	ks_destroy(fp);
 
 	// clean up
 	alignment_destroy(alignment);
