@@ -32,10 +32,14 @@
 #include <stdarg.h>
 #include <limits.h>
 //#include "ksw2/kalloc.h"
+#include "ksw2/kseq.h"
 #include "ksw2/ksw2.h"
 #include "parasail/parasail.h"
 #include "githash.h"
 #include "main.h"
+
+KSEQ_INIT(int, read)
+
 
 enum Library {
 	LibraryStart = 0,
@@ -99,7 +103,7 @@ void fill_matrix(int8_t *matrix, char *fn) {
 	fclose(fp);
 }
 
-char *alignment_mode_to_str(mode)
+char *alignment_mode_to_str(int mode)
 {
 	switch (mode) {
 		case Local: return "local";
@@ -110,7 +114,7 @@ char *alignment_mode_to_str(mode)
 	}
 }
 
-char *library_to_str(mode)
+char *library_to_str(int mode)
 {
 	switch (mode) {
 		case AutoLibrary: return "auto";
@@ -347,7 +351,7 @@ alignment_t *alignment_init()
 }
 void alignment_reset(alignment_t *a)
 {
-	a->qlb = a->tlb = a->qle = a->tlb = 0;
+	a->qlb = a->tlb = a->qle = a->tle = 0;
 	a->n_cigar = 0;
 }
 
@@ -472,7 +476,6 @@ void align_with_parasail(char *query, int query_length, char *target, int target
 			alignment->tlb = 0;
 			for (i = 0; i < parasail_cigar->len; ++i) {
 				char op = parasail_cigar_decode_op(parasail_cigar->seq[i]);
-				int op_int;
 				if (op != 'D') break;
 				uint32_t len = parasail_cigar_decode_len(parasail_cigar->seq[i]);
 				alignment->tlb += len;
@@ -581,8 +584,6 @@ int main(int argc, char *argv[])
 {
 	main_opt_t * opt = NULL;
 	int c;
-	int buffer=65536;
-	char query[buffer], target[buffer];
 	ksw_extz_t ez;
 	alignment_t *alignment = alignment_init();
 
@@ -634,9 +635,18 @@ int main(int argc, char *argv[])
 	}
 
 	// read a query and target at a time
-	while (NULL != fgets(query, buffer, stdin) && NULL != fgets(target, buffer, stdin)) {
-		align(query, target, opt, alignment);
+	kstream_t *fp     = ks_init(fileno(stdin));
+	kstring_t *query  = (kstring_t*)calloc(1, sizeof(kstring_t));
+	kstring_t *target = (kstring_t*)calloc(1, sizeof(kstring_t));
+	int retval = 0;
+	while (ks_getuntil(fp, 0, query, &retval) > 0 && ks_getuntil(fp, 0, target, &retval) > 0) {
+		align(query->s, target->s, opt, alignment);
 	}
+	free(query->s);
+	free(query);
+	free(target->s);
+	free(target);
+	ks_destroy(fp);
 
 	// clean up
 	alignment_destroy(alignment);
