@@ -317,8 +317,8 @@ void assert_or_exit(int condition, const char *fmt, ...)
 void main_opt_validate(main_opt_t *opt)
 {
 	assert_or_exit(AlignmentModeStart <= opt->alignment_mode && opt->alignment_mode <= AlignmentModeEnd, "Alignment mode (-M) was not valid ([%d-%d]), found %d.", AlignmentModeStart, AlignmentModeEnd, opt->alignment_mode);
-	assert_or_exit(opt->mismatch_score > 0, "Mismatch score (-a) must be greater than zero, found %d.", opt->mismatch_score);
-	assert_or_exit(opt->match_score > 0, "Mismatch score (-b) must be greater than zero, found %d.", opt->mismatch_score);
+	assert_or_exit(opt->mismatch_score > 0, "Mismatch penalty (-b) must be greater than zero, found %d.", opt->mismatch_score);
+	assert_or_exit(opt->match_score > 0, "Match score (-a) must be greater than zero, found %d.", opt->match_score);
 	assert_or_exit(opt->gap_open >= 0, "Gap open penalty (-q) must be greater than or equal to zero, found %d.", opt->gap_open);
 	assert_or_exit(opt->gap_extend > 0, "Gap extend penalty (-r) must be greater than zero, found %d.", opt->gap_extend);
 	assert_or_exit(0 <= opt->band_width, "Band width (-w) must be greater than or equal zero, found %d.", opt->band_width);
