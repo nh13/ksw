@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
-#include <emmintrin.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -93,6 +92,7 @@ void fill_matrix(int8_t *matrix, char *fn) {
 			}
 			matrix[i] = atoi(pch);
 			i++;
+			pch = strtok(NULL, ",\t");
 		}
 	}
 	if (i != 16 && i != 25) {

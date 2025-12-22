@@ -4462,3 +4462,7 @@ args: -l 2 -M 3 -q 0
 16	-1	23	-1	27
 16	-1	27	-1	23
 9	-1	27	-1	27
+args: -m ./tests/matrix_4x4.txt
+6	-1	4	-1	4
+args: -m ./tests/matrix_5x5.txt
+12	-1	5	-1	5
