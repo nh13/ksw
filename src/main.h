@@ -49,6 +49,7 @@ struct main_opt_t {
 	int32_t add_header;
 	int32_t right_align_gaps;
 	int32_t offset_and_length;
+	int32_t zdrop;
 	int32_t library;
 
 	int32_t parasail_vec_strat;

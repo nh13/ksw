@@ -14,10 +14,34 @@ SUBDIRS=      $(SRC_DIR)/ksw2/ $(SRC_DIR)/parasail/build
 CC=			  gcc
 CFLAGS=		  -g -Wall -Wno-unused-function -O2
 WRAP_MALLOC=  -DUSE_MALLOC_WRAPPERS
-DFLAGS=		  -DHAVE_PTHREAD $(WRAP_MALLOC)
+DFLAGS=		  -DHAVE_PTHREAD $(WRAP_MALLOC) -DHAVE_KALLOC -DKSW_SSE2_ONLY -D__SSE2_
 INCLUDES=
 LIBS=		  -lm -lz -lparasail
 override LDFLAGS +=      -L$(SRC_DIR)/parasail/build
+
+
+ifneq ($(aarch64),)
+    arm_neon=1
+endif
+
+ifneq ($(arm_neon),) # if arm_neon is not defined
+    INCLUDES+=-Isrc/ksw2/sse2neon
+ifeq ($(aarch64),)  #if aarch64 is not defined
+    CFLAGS+=-D_FILE_OFFSET_BITS=64 -mfpu=neon -fsigned-char
+else                #if aarch64 is defined
+    CFLAGS+=-D_FILE_OFFSET_BITS=64 -fsigned-char
+endif
+endif
+
+ifneq ($(asan),)
+    CFLAGS+=-fsanitize=address
+    LIBS+=-fsanitize=address -ldl
+endif
+
+ifneq ($(tsan),)
+    CFLAGS+=-fsanitize=thread
+    LIBS+=-fsanitize=thread -ldl
+endif
 
 
 # Target installation directory
@@ -32,7 +56,7 @@ endif
 all: $(SUBDIRS) $(PROG)
 
 $(SUBDIRS): $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/build/Makefile 
-	$(MAKE) -C $@
+	$(MAKE) aarch64=$(aarch64) arm_neon=$(arm_neon) -C $@
 
 ksw: $(KSW2_OBJS) $(OBJS) $(SRC_DIR)/parasail/build/libparasail.a
 	$(CC) -g $(LDFLAGS) $(DFLAGS) $(KSW2_OBJS) $(OBJS) $(LIBS) -o $@
@@ -53,7 +77,7 @@ $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt :
 .NOTPARALLEL $(SRC_DIR)/parasail/build/Makefile $(SRC_DIR)/parasail/build/libparasail.a: $(SRC_DIR)/parasail/CMakeLists.txt
 	@mkdir -p $(SRC_DIR)/parasail/build;
 	cd $(SRC_DIR)/parasail/build; \
-	cmake -DBUILD_SHARED_LIBS=OFF ..;
+	cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..;
 
 clean: $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/CMakeLists.txt
 	rm -f gmon.out a.out $(PROG) *~ *.a $(SRC_DIR)/githash.h $(OBJS)
