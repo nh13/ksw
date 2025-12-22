@@ -530,8 +530,8 @@ void align(char *query, char *target, main_opt_t *opt, alignment_t *alignment)
 	int tl = strlen(target); // target length
 
 	// remove ending newlines
-	if (query[ql-1] == '\n') { query[ql-1] = '\0'; ql--; }
-	if (target[tl-1] == '\n') { target[tl-1] = '\0'; tl--; }
+	if (ql > 0 && query[ql-1] == '\n') { query[ql-1] = '\0'; ql--; }
+	if (tl > 0 && target[tl-1] == '\n') { target[tl-1] = '\0'; tl--; }
 
 	// reset the alignment
 	alignment_reset(alignment);
