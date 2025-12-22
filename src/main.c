@@ -95,7 +95,7 @@ void fill_matrix(int8_t *matrix, char *fn) {
 			i++;
 		}
 	}
-	if (i != 16 || i != 25) {
+	if (i != 16 && i != 25) {
 		fprintf(stderr, "Incorrect # of values (found %d, want 16 or 25) in %s\n", i, fn);
 		exit(1);
 	}
@@ -239,6 +239,7 @@ main_opt_t *main_opt_init()
 	opt->right_align_gaps = 0;
 	opt->offset_and_length = 0;
 	opt->parasail_vec_strat = 0; // TODO: set on the command line
+	opt->zdrop = -1;
 	opt->library = AutoLibrary;
 
 	return opt;
@@ -404,7 +405,7 @@ void align_with_ksw2(char *query, int query_length, char *target, int target_len
 		case Local: fprintf(stderr, "KSW2 does not support local\n"); exit(1);
 		case Glocal: fprintf(stderr, "KSW2 does not support glocal\n"); exit(1);
 		case Extension: // extend
-			ksw_extz2_sse(0, query_length, (uint8_t*)query, target_length, (uint8_t*)target, 5, ksw2_data->matrix, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_data->ksw2_flags | KSW_EZ_EXTZ_ONLY, &ksw2_data->ez);
+			ksw_extz2_sse(0, query_length, (uint8_t*)query, target_length, (uint8_t*)target, 5, ksw2_data->matrix, opt->gap_open, opt->gap_extend, opt->band_width, opt->zdrop, 0, ksw2_data->ksw2_flags | KSW_EZ_EXTZ_ONLY, &ksw2_data->ez);
 			alignment->score   = ksw2_data->ez.mqe; // maximum score when we reach the end of the query
 			if (ksw2_data->ez.max_q < 0) {
 				alignment->qlb = -1;
@@ -420,7 +421,7 @@ void align_with_ksw2(char *query, int query_length, char *target, int target_len
 			}
 			break;
 		case Global: // global
-			ksw_extz2_sse(0, query_length, (uint8_t*)query, target_length, (uint8_t*)target, 5, ksw2_data->matrix, opt->gap_open, opt->gap_extend, opt->band_width, -1, ksw2_data->ksw2_flags, &ksw2_data->ez);
+			ksw_extz2_sse(0, query_length, (uint8_t*)query, target_length, (uint8_t*)target, 5, ksw2_data->matrix, opt->gap_open, opt->gap_extend, opt->band_width, opt->zdrop, 0, ksw2_data->ksw2_flags, &ksw2_data->ez);
 			alignment->score = ksw2_data->ez.score;
 			alignment->qlb = 0;
 			alignment->tlb = 0;
@@ -577,6 +578,7 @@ void usage(main_opt_t *opt)
 		if (i < LibraryEnd) fputc(',', stderr);
 	}
 	fprintf(stderr, " [%d - %s]\n", opt->library, library_to_str(opt->library));
+	fprintf(stderr, "       -z INT      Z-drop (for KSW) [%d]\n", opt->zdrop);
 	fprintf(stderr,"\nNote: when any of the algorithms open a gap, the gap open plus the gap extension penalty is applied.\n");
 }
 
@@ -592,7 +594,7 @@ int main(int argc, char *argv[])
 	opt = main_opt_init();
 
 	// FIXME: for local or glocal we don't the query/target starts unless we output the cigar
-	while ((c = getopt(argc, argv, "M:a:b:q:r:w:m:csHROl:h")) >= 0) {
+	while ((c = getopt(argc, argv, "M:a:b:q:r:w:m:csHROz:l:h")) >= 0) {
 		switch (c) {
 			case 'M': opt->alignment_mode = atoi(optarg); break;
 			case 'a': opt->match_score = atoi(optarg); break;
@@ -606,6 +608,7 @@ int main(int argc, char *argv[])
 			case 'H': opt->add_header = 1; break;
 			case 'R': opt->right_align_gaps = 1; break;
 			case 'O': opt->offset_and_length = 1; break;
+			case 'z': opt->zdrop = atoi(optarg); break;
 			case 'l': opt->library = atoi(optarg); break;
 			case 'h': usage(opt); return 1;
 			default: usage(opt); return 1;
