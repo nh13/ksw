@@ -69,6 +69,22 @@ echo "Testing matrix loading with 5x5 matrix (-m)";
 echo "args: -m tests/matrix_5x5.txt" >> $output;
 echo -e "GATTAC\nGATTAC" | $script_dir/../ksw -m $script_dir/matrix_5x5.txt >> $output;
 
+# Test error handling for missing matrix file (Issue #18)
+echo "Testing error handling for missing matrix file (-m)";
+set +e
+error_output=$($script_dir/../ksw -m /nonexistent/matrix.txt 2>&1);
+exit_status=$?;
+set -e
+if [ $exit_status -eq 0 ]; then
+    echo "FAIL: Expected non-zero exit status for missing matrix file";
+    exit 1;
+fi
+if [[ "$error_output" != *"Cannot open matrix file"* ]]; then
+    echo "FAIL: Expected error message for missing matrix file, got: $error_output";
+    exit 1;
+fi
+echo "PASS: Missing matrix file error handling";
+
 # Check test output
 if [ "$overwrite" == "0" ]; then
     diff $actual $expected;
