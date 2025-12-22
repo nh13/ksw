@@ -586,10 +586,7 @@ int main(int argc, char *argv[])
 {
 	main_opt_t * opt = NULL;
 	int c;
-	ksw_extz_t ez;
 	alignment_t *alignment = alignment_init();
-
-	memset(&ez, 0, sizeof(ksw_extz_t));
 
 	opt = main_opt_init();
 
