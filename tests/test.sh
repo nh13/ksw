@@ -60,6 +60,15 @@ do
     done
 done
 
+# Test matrix loading (Issue #16: matrix validation logic fix)
+echo "Testing matrix loading with 4x4 matrix (-m)";
+echo "args: -m tests/matrix_4x4.txt" >> $output;
+echo -e "GATTAC\nGATTAC" | $script_dir/../ksw -m $script_dir/matrix_4x4.txt >> $output;
+
+echo "Testing matrix loading with 5x5 matrix (-m)";
+echo "args: -m tests/matrix_5x5.txt" >> $output;
+echo -e "GATTAC\nGATTAC" | $script_dir/../ksw -m $script_dir/matrix_5x5.txt >> $output;
+
 # Check test output
 if [ "$overwrite" == "0" ]; then
     diff $actual $expected;
