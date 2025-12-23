@@ -188,7 +188,7 @@ parasail_data_t *parasail_data_init(main_opt_t *opt, const int8_t *matrix)
 	parasail_data_t *data = calloc(1, sizeof(parasail_data_t));
 	char parasail_func_name[128];
 	
-	// create a matrix, don't care about the valukes
+	// create a matrix, don't care about the values
 	data->matrix = parasail_matrix_create("ACGTN", matrix[0], matrix[1]); 
 	// update the matrix with the correct values
 	for (i = l = 0; i < 5; ++i) {
@@ -462,7 +462,7 @@ void align_with_parasail(char *query, int query_length, char *target, int target
 	// set the score
 	alignment->score = parasail_result->score;
 
-	// set end of alignmnet
+	// set end of alignment
 	alignment->qle = parasail_result->end_query;
 	alignment->tle = parasail_result->end_ref;
 
@@ -590,7 +590,7 @@ int main(int argc, char *argv[])
 
 	opt = main_opt_init();
 
-	// FIXME: for local or glocal we don't the query/target starts unless we output the cigar
+	// FIXME: for local or glocal we don't know the query/target starts unless we output the cigar
 	while ((c = getopt(argc, argv, "M:a:b:q:r:w:m:csHROz:l:h")) >= 0) {
 		switch (c) {
 			case 'M': opt->alignment_mode = atoi(optarg); break;
