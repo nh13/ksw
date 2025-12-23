@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <errno.h>
 //#include "ksw2/kalloc.h"
 #include "ksw2/kseq.h"
 #include "ksw2/ksw2.h"
@@ -79,6 +80,10 @@ unsigned char seq_nt4_table[256] = {
 
 void fill_matrix(int8_t *matrix, char *fn) {
 	FILE *fp = fopen(fn, "r");
+	if (fp == NULL) {
+		fprintf(stderr, "Error: Cannot open matrix file '%s': %s\n", fn, strerror(errno));
+		exit(1);
+	}
 	char buffer[256];
 	char *pch;
 	int i = 0;
