@@ -68,7 +68,11 @@ $(KSW2_BUILD): $(SRC_DIR)/ksw2/Makefile
 $(PARASAIL_BUILD): $(SRC_DIR)/parasail/build/Makefile
 	$(MAKE) aarch64=$(aarch64) arm_neon=$(arm_neon) -C $@ parasail
 
-ksw: $(KSW2_OBJS) $(OBJS) $(SRC_DIR)/parasail/build/libparasail.a
+# The order-only prerequisite on the subdirectories ensures ksw2 and parasail
+# (which produce $(KSW2_OBJS) and libparasail.a) are fully built before ksw is
+# linked. Without it, `make -j` can start linking ksw before libparasail.a
+# exists (ld: cannot find -lparasail).
+ksw: $(KSW2_OBJS) $(OBJS) $(SRC_DIR)/parasail/build/libparasail.a | $(SUBDIRS)
 	$(CC) -g $(LDFLAGS) $(DFLAGS) $(KSW2_OBJS) $(OBJS) $(LIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/githash.h
