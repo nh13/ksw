@@ -9,7 +9,9 @@ KSW2_SRCS=    $(filter-out $(KSW2_MAINS),$(wildcard $(KSW2_SRC_DIR)/*c))
 KSW2_OBJS=    $(KSW2_SRCS:$(KSW2_SRC_DIR)/%.c=$(KSW2_OBJ_DIR)/%.o)
 
 PROG=		  ksw
-SUBDIRS=      $(SRC_DIR)/ksw2/ $(SRC_DIR)/parasail/build
+KSW2_BUILD=     $(SRC_DIR)/ksw2/
+PARASAIL_BUILD= $(SRC_DIR)/parasail/build
+SUBDIRS=      $(KSW2_BUILD) $(PARASAIL_BUILD)
 
 CC=			  gcc
 CFLAGS=		  -g -Wall -Wno-unused-function -O2
@@ -55,10 +57,22 @@ endif
 
 all: $(SUBDIRS) $(PROG)
 
-$(SUBDIRS): $(SRC_DIR)/ksw2/Makefile $(SRC_DIR)/parasail/build/Makefile 
+# ksw2 builds its default target. parasail builds only its `parasail` static
+# library target rather than the default `all`, which would also compile the
+# bundled test and app executables. Those tests are not needed to link ksw and
+# fail to compile under stricter compilers (e.g. GCC 14, which promotes
+# -Wincompatible-pointer-types to a hard error in parasail's test sources).
+$(KSW2_BUILD): $(SRC_DIR)/ksw2/Makefile
 	$(MAKE) aarch64=$(aarch64) arm_neon=$(arm_neon) -C $@
 
-ksw: $(KSW2_OBJS) $(OBJS) $(SRC_DIR)/parasail/build/libparasail.a
+$(PARASAIL_BUILD): $(SRC_DIR)/parasail/build/Makefile
+	$(MAKE) aarch64=$(aarch64) arm_neon=$(arm_neon) -C $@ parasail
+
+# The order-only prerequisite on the subdirectories ensures ksw2 and parasail
+# (which produce $(KSW2_OBJS) and libparasail.a) are fully built before ksw is
+# linked. Without it, `make -j` can start linking ksw before libparasail.a
+# exists (ld: cannot find -lparasail).
+ksw: $(KSW2_OBJS) $(OBJS) $(SRC_DIR)/parasail/build/libparasail.a | $(SUBDIRS)
 	$(CC) -g $(LDFLAGS) $(DFLAGS) $(KSW2_OBJS) $(OBJS) $(LIBS) -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(SRC_DIR)/githash.h
